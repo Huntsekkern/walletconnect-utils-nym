@@ -14,6 +14,7 @@ import {
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 const resolveWebSocketImplementation = () => {
+  // TODO maybe HERE
   if (typeof global !== "undefined" && typeof global.WebSocket !== "undefined") {
     return global.WebSocket;
   }
@@ -29,8 +30,12 @@ const isBrowser = () => typeof window !== "undefined";
 const WS = resolveWebSocketImplementation();
 
 export class WsConnection implements IJsonRpcConnection {
+  // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
   public events = new EventEmitter();
 
+  // TODO maybe HERE, or at least check all methods calling it!
+  // A nice solution could be to create a wrapper around the WebSocket instead of wrapping the calls individually.
+  // I should wrap at least close, send
   private socket: WebSocket | undefined;
 
   private registering = false;
@@ -82,15 +87,18 @@ export class WsConnection implements IJsonRpcConnection {
         resolve();
       };
 
+      // TODO HERE
       this.socket.close();
     });
   }
 
   public async send(payload: JsonRpcPayload, context?: any): Promise<void> {
     if (typeof this.socket === "undefined") {
+      // TODO HERE
       this.socket = await this.register();
     }
     try {
+      // TODO HERE
       this.socket.send(safeJsonStringify(payload));
     } catch (e) {
       this.onError(payload.id, e as Error);
@@ -130,6 +138,7 @@ export class WsConnection implements IJsonRpcConnection {
 
     return new Promise((resolve, reject) => {
       const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
+      // TODO HERE
       const socket: WebSocket = new WS(url, [], opts);
       if (isBrowser()) {
         socket.onerror = (event: Event) => {
@@ -149,6 +158,7 @@ export class WsConnection implements IJsonRpcConnection {
   }
 
   private onOpen(socket: WebSocket) {
+    // TODO HERE ??
     socket.onmessage = (event: MessageEvent) => this.onPayload(event);
     socket.onclose = event => this.onClose(event);
     this.socket = socket;
@@ -165,6 +175,7 @@ export class WsConnection implements IJsonRpcConnection {
   private onPayload(e: { data: any }) {
     if (typeof e.data === "undefined") return;
     const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+    // TODO HERE there must be something going on here, and then potentially all the events.emit. Or is it just that when a payload is received, we print it to the console.log??
     this.events.emit("payload", payload);
   }
 
