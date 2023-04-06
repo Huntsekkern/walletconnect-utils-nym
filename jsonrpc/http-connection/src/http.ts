@@ -79,6 +79,7 @@ export class HttpConnection implements IJsonRpcConnection {
     }
     try {
       const body = safeJsonStringify(payload);
+      // TODO HERE
       const res = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
       const data = await res.json();
       this.onPayload({ data });
@@ -119,6 +120,7 @@ export class HttpConnection implements IJsonRpcConnection {
     this.registering = true;
     try {
       const body = safeJsonStringify({ id: 1, jsonrpc: "2.0", method: "test", params: [] });
+      // TODO HERE
       await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
       this.onOpen();
     } catch (e) {
