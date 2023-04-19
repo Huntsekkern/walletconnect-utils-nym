@@ -28,8 +28,14 @@
     "audit:fix": "lerna exec --no-bail -- npm audit fix"
   },
   "devDependencies": {
+    "@types/node": "^18.15.11",
     "lerna": "^6.5.1",
     "npm-run-all": "^4.1.5",
     "tsc": "^2.0.3"
+  },
+  "dependencies": {
+    "@nymproject/sdk": "^1.1.7",
+    "@walletconnect/jsonrpc-utils": "^1.0.7",
+    "@walletconnect/safe-json": "^1.0.2"
   }
 }
