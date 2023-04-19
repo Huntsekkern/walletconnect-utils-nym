@@ -15,6 +15,9 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 const resolveWebSocketImplementation = () => {
   // TODO maybe HERE
+  // So the first two if statements are a way to check if the code is being run in a browser (likely for the browser extensions)
+  // And only if not, to default to the node.js implementation of WebSockets (require("ws")).
+  // I should take care of both cases, which makes it trickier.
   if (typeof global !== "undefined" && typeof global.WebSocket !== "undefined") {
     return global.WebSocket;
   }
@@ -99,6 +102,9 @@ export class WsConnection implements IJsonRpcConnection {
     }
     try {
       // TODO HERE
+      // send takes several options, but in this case a string. This indicates again that this is only the payload,
+      // and either I modify the send function/WS class to take a fixed url, or I modify the url being passed as an arg from a higher level.
+      // But changing the url to the gateway is not enough! I need to call nym SDK which is a send too instead.
       this.socket.send(safeJsonStringify(payload));
     } catch (e) {
       this.onError(payload.id, e as Error);
