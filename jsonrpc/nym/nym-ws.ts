@@ -25,10 +25,6 @@ export class WsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
   public events = new EventEmitter();
 
-  // TODO maybe HERE, or at least check all methods calling it!
-  // A nice solution could be to create a wrapper around the WebSocket instead of wrapping the calls individually.
-  // I should wrap at least close, send
-
   private registering = false;
 
   private nym: NymMixnetClient | undefined;
@@ -78,13 +74,13 @@ export class WsConnection implements IJsonRpcConnection {
         return;
       }
 
-      this.nym.onclose = event => {
-        this.onClose(event);
-        resolve();
-      };
+      // This must match my mini-protocol as a close order for the SP.
+      this.send('close')
 
-      // TODO HERE
-      this.nym.close();
+      // TODO By doing it like that, I'm not waiting for the SP confirming the closure.
+      // Could consider playing with events and the onPayload handler to properly wait.
+      this.onClose();
+      resolve();
     });
   }
 
@@ -93,11 +89,6 @@ export class WsConnection implements IJsonRpcConnection {
       this.nym = await this.register();
     }
     try {
-      // TODO HERE
-      // send takes several options, but in this case a string. This indicates again that this is only the payload,
-      // and either I modify the send function/WS class to take a fixed url, or I modify the url being passed as an arg from a higher level.
-      // But changing the url to the gateway is not enough! I need to call nym SDK which is a send too instead.
-
       // Adding the senderTag here would follow the DRY rule a bit more. Yeah, that's the solution
       const taggedPayload = {
         senderTag: this.senderTag,
@@ -106,7 +97,7 @@ export class WsConnection implements IJsonRpcConnection {
       const nymPayload: Payload  = {
         message: safeJsonStringify(taggedPayload),
       };
-      const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO
+      const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO. fix it like / instead of the url param??
       const SURBsGiven: number = 5;
       await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
     } catch (e) {
@@ -144,8 +135,8 @@ export class WsConnection implements IJsonRpcConnection {
 
     // send the "senderTag" now
     // If using send, important to be after the this.nym = nym;
-    // and then as well that payload is '' as a chosen way to state "please open a conn"
-    this.send('').catch(
+    // and then as well that payload is 'open' as a chosen way to state "please open a conn"
+    this.send('open').catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
 
@@ -153,7 +144,7 @@ export class WsConnection implements IJsonRpcConnection {
     this.events.emit("open");
   }
 
-  private onClose(event: CloseEvent) {
+  private onClose() {
     this.nym = undefined;
     this.registering = false;
     this.events.emit("close", event);
