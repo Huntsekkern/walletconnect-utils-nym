@@ -108,7 +108,7 @@ export class WsConnection implements IJsonRpcConnection {
       };
       const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO
       const SURBsGiven: number = 5;
-      await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven  });
+      await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
     } catch (e) {
       this.onError(payload.id, e as Error);
     }
@@ -164,6 +164,7 @@ export class WsConnection implements IJsonRpcConnection {
     const payload: JsonRpcPayload = typeof e.args.payload === "string" ? safeJsonParse(e.args.payload) : e.args.payload;
     // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection
     // TODO maybe? process the payload if I give it a different structure at the SP, i.e., like I'm doing with the senderTag
+    // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
     this.events.emit("payload", payload);
   }
 
