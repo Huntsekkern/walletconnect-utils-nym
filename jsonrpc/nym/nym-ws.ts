@@ -9,7 +9,7 @@ import {
   isLocalhostUrl,
   parseConnectionError,
 } from "@walletconnect/jsonrpc-utils";
-import { createNymMixnetClient, NymMixnetClient, Payload } from "@nymproject/sdk";
+import { createNymMixnetClient, NymMixnetClient, Payload, StringMessageReceivedEvent } from "@nymproject/sdk";
 
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 import crypto from "crypto";
@@ -68,7 +68,7 @@ export class WsConnection implements IJsonRpcConnection {
   }
 
   public async open(url: string = this.url): Promise<void> {
-    await this.register(url);
+    await this.register(url)
   }
 
   public async close(): Promise<void> {
@@ -90,7 +90,6 @@ export class WsConnection implements IJsonRpcConnection {
 
   public async send(payload: JsonRpcPayload, context?: any): Promise<void> {
     if (typeof this.nym === "undefined") {
-      // TODO HERE
       this.nym = await this.register();
     }
     try {
@@ -100,14 +99,16 @@ export class WsConnection implements IJsonRpcConnection {
       // But changing the url to the gateway is not enough! I need to call nym SDK which is a send too instead.
 
       // Adding the senderTag here would follow the DRY rule a bit more. Yeah, that's the solution
-
-      // send a message to yourself
+      const taggedPayload = {
+        senderTag: this.senderTag,
+        payload: safeJsonStringify(payload)
+      }
       const nymPayload: Payload  = {
-        message: safeJsonStringify({ senderTag: this.senderTag, payload: safeJsonStringify(payload)}),
+        message: safeJsonStringify(taggedPayload),
       };
-      const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>';
+      const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO
       const SURBsGiven: number = 5;
-      await this.nym.client.send({ nymPayload, recipient, SURBsGiven  });
+      await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven  });
     } catch (e) {
       this.onError(payload.id, e as Error);
     }
@@ -115,39 +116,35 @@ export class WsConnection implements IJsonRpcConnection {
 
   // ---------- Private ----------------------------------------------- //
 
-  private register(url = this.url): Promise<NymMixnetClient> {
+  private async register(url: string = this.url): Promise<NymMixnetClient> {
     this.url = url;
     this.registering = true;
 
-    return new Promise((resolve, reject) => {
+    const nym = await createNymMixnetClient();
 
-
-       const nym: NymMixnetClient = resolve(createNymMixnetClient());
-
-        // start the client and connect to a gateway
-        nym.client.start({
-          clientId: 'My awesome client',  // TODO HERE
-          nymApiUrl,
-        });
-
-       this.onOpen(nym)
-       resolve(nym)
-
+    // start the client and connect to a gateway
+    await nym.client.start({
+      clientId: 'My awesome client',  // TODO HERE
+      nymApiUrl,
     });
+
+    this.onOpen(nym)
+
+    return nym;
   }
 
   private onOpen(nym: NymMixnetClient) {
     // show message payload content when received
     nym.events.subscribeToTextMessageReceivedEvent((e) => {
-      console.log('Got a message: ', e.args.payload); // TODO do better than a console log, those are the subscription push updates
+      //console.log('Got a message: ', e.args.payload);
+      this.onPayload(e)
     });
     this.nym = nym;
     //this.senderTag =
 
-    // TODO send the "senderTag" now!
+    // send the "senderTag" now
     // If using send, important to be after the this.nym = nym;
-      // and then as well that payload is '' as a chosen way to state "please open a conn"
-
+    // and then as well that payload is '' as a chosen way to state "please open a conn"
     this.send('').catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
@@ -162,6 +159,13 @@ export class WsConnection implements IJsonRpcConnection {
     this.events.emit("close", event);
   }
 
+  private onPayload(e: StringMessageReceivedEvent) {
+    if (typeof e.args.payload === "undefined") return;
+    const payload: JsonRpcPayload = typeof e.args.payload === "string" ? safeJsonParse(e.args.payload) : e.args.payload;
+    // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection
+    // TODO maybe? process the payload if I give it a different structure at the SP, i.e., like I'm doing with the senderTag
+    this.events.emit("payload", payload);
+  }
 
   private onError(id: number, e: Error) {
     const error = this.parseError(e);
