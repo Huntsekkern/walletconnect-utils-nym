@@ -20,6 +20,7 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 const isBrowser = () => typeof window !== "undefined";
 
 const nymApiUrl = 'https://validator.nymtech.net/api';
+const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
 
 export class WsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
@@ -34,8 +35,10 @@ export class WsConnection implements IJsonRpcConnection {
   //private senderTag = crypto.randomBytes(32).toString("base64");
 
   constructor(public url: string) {
-    // TODO: currently, url is the relay ws url. Should I let the service provider choose it and reconvert the url to the nym address of the SP?
-    // Or should I keep both the ws url and the nym SP addr?
+    // TODO: add the nym SP addr?
+    if (!isWsUrl(url)) {
+      throw new Error(`Provided URL is not compatible with WebSocket connection: ${url}`);
+    }
     this.url = url;
   }
 
@@ -91,6 +94,7 @@ export class WsConnection implements IJsonRpcConnection {
     try {
       // Adding the senderTag here would follow the DRY rule a bit more. Yeah, that's the solution
       const taggedPayload = {
+        // TODO I now have doubt that the senderTag might be added automatically by the SDK?? That would be convenient-ish.
         senderTag: this.senderTag,
         payload: safeJsonStringify(payload)
       }
@@ -113,10 +117,20 @@ export class WsConnection implements IJsonRpcConnection {
 
     const nym = await createNymMixnetClient();
 
+    // add nym client to the Window globally, so that it can be used from the dev tools console
+    (window as any).nym = nym;
+
+    if (!nym) {
+      console.error('Oh no! Could not create client');
+      return nym;
+    }
+
+
     // start the client and connect to a gateway
     await nym.client.start({
       clientId: 'My awesome client',  // TODO HERE
       nymApiUrl,
+      preferredGatewayIdentityKey, // TODO HERE
     });
 
     this.onOpen(nym)
@@ -126,6 +140,7 @@ export class WsConnection implements IJsonRpcConnection {
 
   private onOpen(nym: NymMixnetClient) {
     // show message payload content when received
+    // TODO might want to subscribe to all types of message? raw and binary too?
     nym.events.subscribeToTextMessageReceivedEvent((e) => {
       //console.log('Got a message: ', e.args.payload);
       this.onPayload(e)
@@ -136,7 +151,10 @@ export class WsConnection implements IJsonRpcConnection {
     // send the "senderTag" now
     // If using send, important to be after the this.nym = nym;
     // and then as well that payload is 'open' as a chosen way to state "please open a conn"
-    this.send('open').catch(
+    const payload = {
+
+    }
+    this.send('open:' + this.url).catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
 
