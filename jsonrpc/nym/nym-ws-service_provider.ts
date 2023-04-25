@@ -47,20 +47,21 @@ async function main() {
 function handleResponse(responseMessageEvent : MessageEvent) {
 
   try {
-    let response = JSON.parse(responseMessageEvent.data.toString());
-    if (response.type == "error") {
-      console.log("\x1b[91mAn error occured: " + response.message + "\x1b[0m")
-    } else if (response.type == "selfAddress") {
-      ourAddress = response.address;
+    let message = JSON.parse(responseMessageEvent.data.toString());
+    if (message.type == "error") {
+      console.log("\x1b[91mAn error occured: " + message.message + "\x1b[0m")
+    } else if (message.type == "selfAddress") {
+      ourAddress = message.address;
       console.log("\x1b[94mOur address is: " + ourAddress + "\x1b[0m")
-    } else if (response.type == "received") {
+    } else if (message.type == "received") {
       // Those are the messages received from the mixnet, i.e., from the wallets and dapps.
-      handleReceivedMixnetMessage(response)
+      handleReceivedMixnetMessage(message)
     }
   } catch (_) {
     console.log('something went wrong in handleResponse')
   }
 }
+
 
 function handleReceivedMixnetMessage(response: any) {
   let messageContent = JSON.parse(response.message);
@@ -81,8 +82,15 @@ function handleReceivedMixnetMessage(response: any) {
     const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
     const socket: WebSocket = new WebSocket(url, [], opts);
     // might want to spin the above into another proper function with async/await too, as in ws.ts register
-    tagToWSConn.set(senderTag, socket);
-    WSConnToSurbs.set(socket, replySURBs);
+    (socket as any).on("error", (errorEvent: any) => {
+      console.log(errorEvent);
+    });
+    socket.onopen = () => {
+      tagToWSConn.set(senderTag, socket);
+      WSConnToSurbs.set(socket, replySURBs);
+      onOpen(socket, senderTag);
+    };
+
   } else if (payload == "close") {
     closeWS(senderTag)
   } else { // Then the message is a JSONRPC to be passed to the relay server
@@ -97,14 +105,32 @@ function handleReceivedMixnetMessage(response: any) {
 
   console.log('\x1b[93mSending response back to client... \x1b[0m')
 
-  sendMessageToMixnet(response.senderTag)
+  sendMessageToMixnet('nothing relevant', response.senderTag);
 }
 
-function sendMessageToMixnet(senderTag: string) {
+function onOpen(socket: WebSocket, senderTag: string) {
+  socket.onmessage = (event: MessageEvent) => onPayload(senderTag, event);
+  socket.onclose = event => onClose(socket, senderTag);
+}
+
+function onClose(socket: WebSocket, senderTag: string) {
+  sendMessageToMixnet('close', senderTag);
+  WSConnToSurbs.delete(socket);
+  tagToWSConn.delete(senderTag);
+}
+
+function onPayload(senderTag: string, e: { data: any }) {
+  if (typeof e.data === "undefined") return;
+  const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+  sendMessageToMixnet(safeJsonStringify(payload), senderTag);
+}
+
+
+function sendMessageToMixnet(messageContent: string, senderTag: string) {
 
   // Place each of the form values into a single object to be sent.
   const messageContentToSend = {
-    text: 'We received your request - this reply sent to you anonymously with SURBs',
+    text: messageContent,
     fromAddress : ourAddress
   }
 
@@ -113,6 +139,9 @@ function sendMessageToMixnet(senderTag: string) {
     message: JSON.stringify(messageContentToSend),
     senderTag: senderTag
   }
+  // TODO as I'm using the senderTag, are the matching SURBs automatically retrieved??
+  // If not, I could either pass 1 surb directly (not too hard as the socket is available from where I'm making the call)
+  // Or retrieve them here from senderTag => WSConn => SURBs. But in that case, maybe better to make the 2nd map a senderTag:SURBs.
 
   // Send our message object out via our websocket connection.
   mixnetWebsocketConnection.send(JSON.stringify(message));
@@ -143,6 +172,7 @@ function connectWebsocket(url : string) {
 
 function closeWS(senderTag: string): Promise<void> {
   const socket: WebSocket = tagToWSConn.get(senderTag);
+
   return new Promise<void>((resolve, reject) => {
     if (typeof socket === "undefined") {
       reject(new Error("Connection already closed"));
@@ -150,7 +180,7 @@ function closeWS(senderTag: string): Promise<void> {
     }
 
     socket.onclose = event => {
-      this.onClose(event);
+      onClose(socket, event);
       resolve();
     };
 
