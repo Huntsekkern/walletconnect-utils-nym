@@ -43,7 +43,7 @@ async function main() {
 
 
 
-// Handle any messages that come back down the websocket.
+// Handle any messages that come back down the mixnet-facing client websocket.
 function handleResponse(responseMessageEvent : MessageEvent) {
 
   try {
@@ -64,7 +64,8 @@ function handleResponse(responseMessageEvent : MessageEvent) {
 
 
 
-
+// handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
+// The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
 function handleReceivedMixnetMessage(response: any) {
   let messageContent = JSON.parse(response.message);
   let replySURBs = response.replySurbs; // TODO should be an array of SURBs, if not modify accordingly.
@@ -110,7 +111,7 @@ function handleReceivedMixnetMessage(response: any) {
   sendMessageToMixnet('nothing relevant', response.senderTag);
 }
 
-
+// forwardRPC sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
 function forwardRPC(senderTag: string, payload: any) {
   const socket = tagToWSConn.get(senderTag);
   if (typeof socket === "undefined") {
@@ -125,24 +126,30 @@ function forwardRPC(senderTag: string, payload: any) {
   }
 }
 
+// onOpen is called when a new WS to a relay-server is created on request from a mixnet user.
 function onOpen(socket: WebSocket, senderTag: string) {
   socket.onmessage = (event: MessageEvent) => onPayload(senderTag, event);
   socket.onclose = event => onClose(socket, senderTag);
 }
 
+// onClose is called when a mixnet user request to closes its WS connection
+// OR when the relay-server sends a close message to the WS.
 function onClose(socket: WebSocket, senderTag: string) {
   sendMessageToMixnet('close', senderTag);
   WSConnToSurbs.delete(socket);
   tagToWSConn.delete(senderTag);
 }
 
+// onPayload is called when a relay-server sends a payload to an existing WS.
+// The service provider forwards the received payload to the matching mixnet user.
 function onPayload(senderTag: string, e: { data: any }) {
   if (typeof e.data === "undefined") return;
   const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
   sendMessageToMixnet(safeJsonStringify(payload), senderTag);
 }
 
-
+// sendMessageToMixnet sends a message to a mixnet user (wallet/dapp)
+// it relies on a Nym send function, which should be explored better to ensure correct usage.
 function sendMessageToMixnet(messageContent: string, senderTag: string) {
 
   // Place each of the form values into a single object to be sent.
