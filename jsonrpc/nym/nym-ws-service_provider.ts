@@ -63,6 +63,8 @@ function handleResponse(responseMessageEvent : MessageEvent) {
 }
 
 
+
+
 function handleReceivedMixnetMessage(response: any) {
   let messageContent = JSON.parse(response.message);
   let replySURBs = response.replySurbs; // TODO should be an array of SURBs, if not modify accordingly.
@@ -94,7 +96,7 @@ function handleReceivedMixnetMessage(response: any) {
   } else if (payload == "close") {
     closeWS(senderTag)
   } else { // Then the message is a JSONRPC to be passed to the relay server
-
+    forwardRPC(senderTag, payload)
   }
 
 
@@ -106,6 +108,21 @@ function handleReceivedMixnetMessage(response: any) {
   console.log('\x1b[93mSending response back to client... \x1b[0m')
 
   sendMessageToMixnet('nothing relevant', response.senderTag);
+}
+
+
+function forwardRPC(senderTag: string, payload: any) {
+  const socket = tagToWSConn.get(senderTag);
+  if (typeof socket === "undefined") {
+    // TODO do I return an error to the client or do I open a new WS connection to the relay server?
+    // I'd say the second option. But I'm lacking the url now...
+  }
+  try {
+    socket.send(safeJsonStringify(payload));
+  } catch (e) {
+    // TODO
+    // onError(payload.id, e as Error);
+  }
 }
 
 function onOpen(socket: WebSocket, senderTag: string) {
