@@ -174,6 +174,9 @@ export class WsConnection implements IJsonRpcConnection {
     // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection
     // TODO maybe? process the payload if I give it a different structure at the SP, i.e., like I'm doing with the senderTag
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
+    if (payload.message == 'close') {
+      this.onClose()
+    }
     this.events.emit("payload", payload);
   }
 
