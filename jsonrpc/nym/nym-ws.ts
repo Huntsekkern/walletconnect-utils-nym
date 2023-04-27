@@ -146,6 +146,7 @@ export class WsConnection implements IJsonRpcConnection {
     // show message payload content when received
     // TODO might want to subscribe to all types of message? raw and binary too?
     nym.events.subscribeToTextMessageReceivedEvent((e) => {
+      // or nym.onmessage ???
       //console.log('Got a message: ', e.args.payload);
       this.onPayload(e)
     });
@@ -174,14 +175,18 @@ export class WsConnection implements IJsonRpcConnection {
 
   private onPayload(e: StringMessageReceivedEvent) {
     if (typeof e.args.payload === "undefined") return;
-    const payload: JsonRpcPayload = typeof e.args.payload === "string" ? safeJsonParse(e.args.payload) : e.args.payload;
+    // const payload: JsonRpcPayload = typeof e.args.payload === "string" ? safeJsonParse(e.args.payload) : e.args.payload;
+    const payload: string = e.args.payload;
+
+    if (payload == 'closed') {
+      this.onClose()
+    } else {
+      this.events.emit("payload", payload);
+    }
+
     // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection
     // TODO maybe? process the payload if I give it a different structure at the SP, i.e., like I'm doing with the senderTag
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
-    if (payload.message == 'close') {
-      this.onClose()
-    }
-    this.events.emit("payload", payload);
   }
 
   private onError(id: number, e: Error) {
