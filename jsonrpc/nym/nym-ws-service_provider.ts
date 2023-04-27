@@ -1,4 +1,5 @@
 import WebSocket, { MessageEvent } from "ws";
+import BiMap from 'bidirectional-map';
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
   formatJsonRpcError,
@@ -13,8 +14,9 @@ import {
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
-const tagToWSConn: Map<string, WebSocket> = new Map();
-const WSConnToSurbs: Map<WebSocket, SURBs[]> = new Map();
+// TODO not even sure I need it to be a Bidirectional Map as I'm passing senderTag as param to onClose/OnPayload.
+//const tagToWSConn: Map<string, WebSocket> = new Map();
+const tagToWSConn: BiMap = new BiMap;
 
 var ourAddress:          string;
 var mixnetWebsocketConnection: any;
@@ -45,7 +47,6 @@ async function main() {
 
 // Handle any messages that come back down the mixnet-facing client websocket.
 function handleResponse(responseMessageEvent : MessageEvent) {
-
   try {
     let message = JSON.parse(responseMessageEvent.data.toString());
     if (message.type == "error") {
@@ -66,38 +67,35 @@ function handleResponse(responseMessageEvent : MessageEvent) {
 // handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
 // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
 function handleReceivedMixnetMessage(response: any) {
-  let messageContent = JSON.parse(response.message);
-  let replySURBs = response.replySurbs; // TODO should be an array of SURBs, if not modify accordingly.
+  // TODO not sure about the layers of JSON here, doc unclear, will have to try and look at what come through.
+  let senderTag = response.senderTag;
 
-  // TODO really not sure about the layers of JSON here, doc unclear, will have to try and look at what come through.
-  //let senderTag = response.senderTag;
-  let senderTag = messageContent.senderTag;
-  //let payload = response.payload;
-  let payload = messageContent.payload;
-
-  if (payload.startsWith("open")) {
+  if (response.message.startsWith("open")) {
     // extract the url from the payload which pattern should be open:url
-    const url = payload.substring(5);
-    openWS(url, senderTag, replySURBs);
-  } else if (payload == "close") {
+    const url = response.message.substring(5);
+    openWS(url, senderTag);
+  } else if (response.message == "close") {
     closeWS(senderTag)
   } else { // Then the message is a JSONRPC to be passed to the relay server
+    let messageContent = JSON.parse(response.message);
+    //let payload = response.payload;
+    let payload = messageContent.payload;
     forwardRPC(senderTag, payload)
   }
 
 
-  console.log('\x1b[93mReceived : \x1b[0m');
+  /*console.log('\x1b[93mReceived : \x1b[0m');
   console.log('\x1b[92mName : ' + messageContent.name + '\x1b[0m');
   console.log('\x1b[92mService : ' + messageContent.service + '\x1b[0m');
   console.log('\x1b[92mComment : ' + messageContent.comment + '\x1b[0m');
 
   console.log('\x1b[93mSending response back to client... \x1b[0m')
 
-  sendMessageToMixnet('nothing relevant', response.senderTag);
+  sendMessageToMixnet('nothing relevant', response.senderTag);*/
 }
 
 // openWS opens a new WebSocket connection to a specified url for a given senderTag.
-function openWS(url: string, senderTag: string, replySURBs) {
+function openWS(url: string, senderTag: string) {
   if (!isWsUrl(url)) {
     // TODO : error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
   }
@@ -108,7 +106,6 @@ function openWS(url: string, senderTag: string, replySURBs) {
   });
   socket.onopen = () => {
     tagToWSConn.set(senderTag, socket);
-    WSConnToSurbs.set(socket, replySURBs);
     onOpen(socket, senderTag);
   };
 }
@@ -156,8 +153,7 @@ function onOpen(socket: WebSocket, senderTag: string) {
 // onClose is called when a mixnet user request to closes its WS connection
 // OR when the relay-server sends a close message to the WS.
 function onClose(socket: WebSocket, senderTag: string) {
-  sendMessageToMixnet('close', senderTag);
-  WSConnToSurbs.delete(socket);
+  sendMessageToMixnet('closed', senderTag);
   tagToWSConn.delete(senderTag);
 }
 
@@ -169,24 +165,23 @@ function onPayload(senderTag: string, e: { data: any }) {
   sendMessageToMixnet(safeJsonStringify(payload), senderTag);
 }
 
-// sendMessageToMixnet sends a message to a mixnet user (wallet/dapp)
+// sendMessageToMixnet sends a message to a mixnet user (wallet/dapp) identified by its sender_tag
 // it relies on a Nym send function, which should be explored better to ensure correct usage.
 function sendMessageToMixnet(messageContent: string, senderTag: string) {
 
   // Place each of the form values into a single object to be sent.
-  const messageContentToSend = {
+  /*const messageContentToSend = {
     text: messageContent,
     fromAddress : ourAddress
-  }
+  }*/
 
   const message = {
     type: "reply",
-    message: JSON.stringify(messageContentToSend),
+    //message: JSON.stringify(messageContentToSend),
+    message: messageContent,
     senderTag: senderTag
   }
-  // TODO as I'm using the senderTag, are the matching SURBs automatically retrieved??
-  // If not, I could either pass 1 surb directly (not too hard as the socket is available from where I'm making the call)
-  // Or retrieve them here from senderTag => WSConn => SURBs. But in that case, maybe better to make the 2nd map a senderTag:SURBs.
+  // as I'm using the senderTag, are the matching SURBs automatically retrieved => yes, this also removes all need to keep track of the SURBs!!
 
   // Send our message object out via our websocket connection.
   mixnetWebsocketConnection.send(JSON.stringify(message));

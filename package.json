@@ -37,6 +37,7 @@
     "@nymproject/sdk": "^1.1.7",
     "@walletconnect/jsonrpc-utils": "^1.0.7",
     "@walletconnect/safe-json": "^1.0.2",
+    "bidirectional-map": "^1.1.1",
     "ws": "^8.13.0"
   }
 }
