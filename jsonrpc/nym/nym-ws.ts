@@ -78,7 +78,10 @@ export class WsConnection implements IJsonRpcConnection {
       }
 
       // This must match my mini-protocol as a close order for the SP.
-      this.send('close')
+
+      this.nymSend('close').catch(
+        e => console.log("failed to send the request to close a WSConn: " || e)
+      );
 
       // TODO By doing it like that, I'm not waiting for the SP confirming the closure.
       // Could consider playing with events and the onPayload handler to properly wait.
@@ -88,28 +91,29 @@ export class WsConnection implements IJsonRpcConnection {
   }
 
   public async send(payload: JsonRpcPayload, context?: any): Promise<void> {
-    if (typeof this.nym === "undefined") {
-      this.nym = await this.register();
-    }
-    try {
-      // Adding the senderTag here would follow the DRY rule a bit more. Yeah, that's the solution
-      const taggedPayload = {
-        // TODO I now have doubt that the senderTag might be added automatically by the SDK?? That would be convenient-ish.
-        senderTag: this.senderTag,
-        payload: safeJsonStringify(payload)
-      }
-      const nymPayload: Payload  = {
-        message: safeJsonStringify(taggedPayload),
-      };
-      const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO. fix it like / instead of the url param??
-      const SURBsGiven: number = 5;
-      await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
+    try  {
+      await this.nymSend(safeJsonStringify(payload))
     } catch (e) {
       this.onError(payload.id, e as Error);
     }
   }
 
   // ---------- Private ----------------------------------------------- //
+
+  // nymSend wraps nym.client.send() to reduce code redundancy.
+  private async nymSend(payload: string): Promise<void> {
+    if (typeof this.nym === "undefined") {
+      this.nym = await this.register();
+    }
+
+    const nymPayload: Payload  = {
+      message: payload,
+    };
+    const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO. fix it or user-defined like the url param??
+    const SURBsGiven: number = 5;
+    await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
+  }
+
 
   private async register(url: string = this.url): Promise<NymMixnetClient> {
     this.url = url;
@@ -154,7 +158,7 @@ export class WsConnection implements IJsonRpcConnection {
     const payload = {
 
     }
-    this.send('open:' + this.url).catch(
+    this.nymSend('open:' + this.url).catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
 
