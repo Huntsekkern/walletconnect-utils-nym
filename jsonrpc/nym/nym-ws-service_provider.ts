@@ -63,7 +63,6 @@ function handleResponse(responseMessageEvent : MessageEvent) {
 }
 
 
-
 // handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
 // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
 function handleReceivedMixnetMessage(response: any) {
@@ -79,21 +78,7 @@ function handleReceivedMixnetMessage(response: any) {
   if (payload.startsWith("open")) {
     // extract the url from the payload which pattern should be open:url
     const url = payload.substring(5);
-    if (!isWsUrl(url)) {
-      // TODO : error, either choose a relay server url or transmit error to user?
-    }
-    const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
-    const socket: WebSocket = new WebSocket(url, [], opts);
-    // might want to spin the above into another proper function with async/await too, as in ws.ts register
-    (socket as any).on("error", (errorEvent: any) => {
-      console.log(errorEvent);
-    });
-    socket.onopen = () => {
-      tagToWSConn.set(senderTag, socket);
-      WSConnToSurbs.set(socket, replySURBs);
-      onOpen(socket, senderTag);
-    };
-
+    openWS(url, senderTag, replySURBs);
   } else if (payload == "close") {
     closeWS(senderTag)
   } else { // Then the message is a JSONRPC to be passed to the relay server
@@ -109,6 +94,42 @@ function handleReceivedMixnetMessage(response: any) {
   console.log('\x1b[93mSending response back to client... \x1b[0m')
 
   sendMessageToMixnet('nothing relevant', response.senderTag);
+}
+
+// openWS opens a new WebSocket connection to a specified url for a given senderTag.
+function openWS(url: string, senderTag: string, replySURBs) {
+  if (!isWsUrl(url)) {
+    // TODO : error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
+  }
+  const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
+  const socket: WebSocket = new WebSocket(url, [], opts);
+  (socket as any).on("error", (errorEvent: any) => {
+    console.log(errorEvent);
+  });
+  socket.onopen = () => {
+    tagToWSConn.set(senderTag, socket);
+    WSConnToSurbs.set(socket, replySURBs);
+    onOpen(socket, senderTag);
+  };
+}
+
+// closeWS closes a WebSocket connection identified by the given senderTag.
+function closeWS(senderTag: string): Promise<void> {
+  const socket: WebSocket = tagToWSConn.get(senderTag);
+
+  return new Promise<void>((resolve, reject) => {
+    if (typeof socket === "undefined") {
+      reject(new Error("Connection already closed"));
+      return;
+    }
+
+    socket.onclose = event => {
+      onClose(socket, event);
+      resolve();
+    };
+
+    socket.close();
+  });
 }
 
 // forwardRPC sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
@@ -194,22 +215,6 @@ function connectWebsocket(url : string) {
   });
 }
 
-function closeWS(senderTag: string): Promise<void> {
-  const socket: WebSocket = tagToWSConn.get(senderTag);
 
-  return new Promise<void>((resolve, reject) => {
-    if (typeof socket === "undefined") {
-      reject(new Error("Connection already closed"));
-      return;
-    }
-
-    socket.onclose = event => {
-      onClose(socket, event);
-      resolve();
-    };
-
-    socket.close();
-  });
-}
 
 main();
