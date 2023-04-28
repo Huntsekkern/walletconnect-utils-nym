@@ -2,13 +2,12 @@ import WebSocket, { MessageEvent } from "ws";
 import BiMap from 'bidirectional-map';
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
-  formatJsonRpcError,
-  IJsonRpcConnection,
+  formatJsonRpcError, IJsonRpcConnection, parseConnectionError,
   JsonRpcPayload,
   isReactNative,
   isWsUrl,
   isLocalhostUrl,
-  parseConnectionError,
+  isJsonRpcPayload,
 } from "@walletconnect/jsonrpc-utils";
 
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
@@ -18,14 +17,17 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 //const tagToWSConn: Map<string, WebSocket> = new Map();
 const tagToWSConn: BiMap = new BiMap;
 
-var ourAddress:          string;
-var mixnetWebsocketConnection: any;
+let ourAddress:          string;
+let mixnetWebsocketConnection: any;
+
+// TODO
+const defaultRelayServerUrl = "";
 
 // TODO might want to do it in a class instead of a main function?
 
 async function main() {
-  var port = '1978'
-  var localClientUrl = "ws://127.0.0.1:" + port;
+  const port = "1978";
+  const localClientUrl = "ws://127.0.0.1:" + port;
 
 
   // Set up and handle websocket connection to our desktop client.
@@ -46,7 +48,7 @@ async function main() {
 
 
 // Handle any messages that come back down the mixnet-facing client websocket.
-function handleResponse(responseMessageEvent : MessageEvent) {
+async function handleResponse(responseMessageEvent: MessageEvent) {
   try {
     let message = JSON.parse(responseMessageEvent.data.toString());
     if (message.type == "error") {
@@ -56,7 +58,7 @@ function handleResponse(responseMessageEvent : MessageEvent) {
       console.log("\x1b[94mOur address is: " + ourAddress + "\x1b[0m")
     } else if (message.type == "received") {
       // Those are the messages received from the mixnet, i.e., from the wallets and dapps.
-      handleReceivedMixnetMessage(message)
+      await handleReceivedMixnetMessage(message)
     }
   } catch (_) {
     console.log('something went wrong in handleResponse')
@@ -66,21 +68,25 @@ function handleResponse(responseMessageEvent : MessageEvent) {
 
 // handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
 // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
-function handleReceivedMixnetMessage(response: any) {
+async function handleReceivedMixnetMessage(response: any) {
   // TODO not sure about the layers of JSON here, doc unclear, will have to try and look at what come through.
   let senderTag = response.senderTag;
 
   if (response.message.startsWith("open")) {
     // extract the url from the payload which pattern should be open:url
     const url = response.message.substring(5);
-    openWS(url, senderTag);
+    await openWS(url, senderTag);
   } else if (response.message == "close") {
-    closeWS(senderTag)
+    await closeWS(senderTag)
   } else { // Then the message is a JSONRPC to be passed to the relay server
     let messageContent = JSON.parse(response.message);
     //let payload = response.payload;
     let payload = messageContent.payload;
-    forwardRPC(senderTag, payload)
+    if (isJsonRpcPayload(payload)) {
+      await forwardRPC(senderTag, payload)
+    } else {
+      console.log("payload is not jsonrpc: " + payload);
+    }
   }
 
 
@@ -95,33 +101,37 @@ function handleReceivedMixnetMessage(response: any) {
 }
 
 // openWS opens a new WebSocket connection to a specified url for a given senderTag.
-function openWS(url: string, senderTag: string) {
-  if (!isWsUrl(url)) {
-    // TODO : error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
-  }
-  const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
-  const socket: WebSocket = new WebSocket(url, [], opts);
-  (socket as any).on("error", (errorEvent: any) => {
-    console.log(errorEvent);
+async function openWS(url: string, senderTag: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (!isWsUrl(url)) {
+      // error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
+      sendMessageToMixnet("error: the url given is not a valid WS url", senderTag)
+      reject(new Error("the url given is not a valid WS url"));
+    }
+    const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
+    const socket: WebSocket = new WebSocket(url, [], opts);
+    (socket as any).on("error", (errorEvent: any) => {
+      console.log(errorEvent);
+    });
+    socket.onopen = () => {
+      tagToWSConn.set(senderTag, socket);
+      onOpen(socket, senderTag);
+      resolve(socket);
+    };
   });
-  socket.onopen = () => {
-    tagToWSConn.set(senderTag, socket);
-    onOpen(socket, senderTag);
-  };
 }
 
 // closeWS closes a WebSocket connection identified by the given senderTag.
-function closeWS(senderTag: string): Promise<void> {
-  const socket: WebSocket = tagToWSConn.get(senderTag);
-
+async function closeWS(senderTag: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    const socket: WebSocket = tagToWSConn.get(senderTag);
     if (typeof socket === "undefined") {
       reject(new Error("Connection already closed"));
       return;
     }
 
-    socket.onclose = event => {
-      onClose(socket, event);
+    socket.onclose = () => {
+      onClose(socket, senderTag);
       resolve();
     };
 
@@ -129,25 +139,27 @@ function closeWS(senderTag: string): Promise<void> {
   });
 }
 
+
+
 // forwardRPC sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
-function forwardRPC(senderTag: string, payload: any) {
+async function forwardRPC(senderTag: string, payload: any) {
   const socket = tagToWSConn.get(senderTag);
   if (typeof socket === "undefined") {
-    // TODO do I return an error to the client or do I open a new WS connection to the relay server?
+    // do I return an error to the client or do I open a new WS connection to the relay server?
     // I'd say the second option. But I'm lacking the url now...
+    await openWS(defaultRelayServerUrl, senderTag);
   }
   try {
     socket.send(safeJsonStringify(payload));
   } catch (e) {
-    // TODO
-    // onError(payload.id, e as Error);
+    onError(payload.id, e as Error, senderTag);
   }
 }
 
 // onOpen is called when a new WS to a relay-server is created on request from a mixnet user.
 function onOpen(socket: WebSocket, senderTag: string) {
   socket.onmessage = (event: MessageEvent) => onPayload(senderTag, event);
-  socket.onclose = event => onClose(socket, senderTag);
+  socket.onclose = () => onClose(socket, senderTag);
 }
 
 // onClose is called when a mixnet user request to closes its WS connection
@@ -162,6 +174,13 @@ function onClose(socket: WebSocket, senderTag: string) {
 function onPayload(senderTag: string, e: { data: any }) {
   if (typeof e.data === "undefined") return;
   const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+  sendMessageToMixnet(safeJsonStringify(payload), senderTag);
+}
+
+function onError(id: number, error: Error, senderTag: string) {
+  //const error = parseError(e);
+  const message = error.message || error.toString();
+  const payload = formatJsonRpcError(id, message);
   sendMessageToMixnet(safeJsonStringify(payload), senderTag);
 }
 
@@ -181,7 +200,7 @@ function sendMessageToMixnet(messageContent: string, senderTag: string) {
     message: messageContent,
     senderTag: senderTag
   }
-  // as I'm using the senderTag, are the matching SURBs automatically retrieved => yes, this also removes all need to keep track of the SURBs!!
+  // as I'm using the senderTag, are the matching SURBs automatically retrieved => yes, this also removes all need to keep track of the SURBs!
 
   // Send our message object out via our websocket connection.
   mixnetWebsocketConnection.send(JSON.stringify(message));
@@ -189,16 +208,16 @@ function sendMessageToMixnet(messageContent: string, senderTag: string) {
 
 // Send a message to the mixnet client, asking what our own address is.
 function sendSelfAddressRequest() {
-  var selfAddress = {
-    type: "selfAddress"
-  }
+  const selfAddress = {
+    type: "selfAddress",
+  };
   mixnetWebsocketConnection.send(JSON.stringify(selfAddress));
 }
 
 // Function that connects our application to the mixnet Websocket. We want to call this first in our main function.
 function connectWebsocket(url : string) {
   return new Promise(function (resolve, reject) {
-    var server = new WebSocket(url);
+    const server = new WebSocket(url);
     console.log('connecting to Mixnet Websocket (Nym Client)...')
     server.onopen = function () {
       resolve(server);
