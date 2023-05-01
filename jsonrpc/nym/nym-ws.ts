@@ -4,9 +4,8 @@ import {
   formatJsonRpcError,
   IJsonRpcConnection,
   JsonRpcPayload,
-  isReactNative,
+  isReactNative, isLocalhostUrl,
   isWsUrl,
-  isLocalhostUrl,
   parseConnectionError,
 } from "@walletconnect/jsonrpc-utils";
 import { createNymMixnetClient, NymMixnetClient, Payload, StringMessageReceivedEvent } from "@nymproject/sdk";
@@ -22,7 +21,7 @@ const isBrowser = () => typeof window !== "undefined";
 const nymApiUrl = 'https://validator.nymtech.net/api';
 const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
 
-export class WsConnection implements IJsonRpcConnection {
+export class NymWsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
   public events = new EventEmitter();
 
@@ -30,8 +29,8 @@ export class WsConnection implements IJsonRpcConnection {
 
   private nym: NymMixnetClient | undefined;
 
-  // TODO create here or in onOpen??
-  private senderTag = crypto.randomBytes(32).toString("hex");
+  // senderTag is handled automatically by the Rust client, I hope it also works like that in TS.
+  // private senderTag = crypto.randomBytes(32).toString("hex");
   //private senderTag = crypto.randomBytes(32).toString("base64");
 
   constructor(public url: string) {
@@ -151,14 +150,10 @@ export class WsConnection implements IJsonRpcConnection {
       this.onPayload(e)
     });
     this.nym = nym;
-    //this.senderTag =
 
-    // send the "senderTag" now
-    // If using send, important to be after the this.nym = nym;
+    // send the open request along with senderTag and SURBs now
+    // If using nymSend, important to be after the this.nym = nym;
     // and then as well that payload is 'open' as a chosen way to state "please open a conn"
-    const payload = {
-
-    }
     this.nymSend('open:' + this.url).catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
@@ -170,7 +165,7 @@ export class WsConnection implements IJsonRpcConnection {
   private onClose() {
     this.nym = undefined;
     this.registering = false;
-    this.events.emit("close", event);
+    this.events.emit("close");
   }
 
   private onPayload(e: StringMessageReceivedEvent) {
@@ -181,11 +176,9 @@ export class WsConnection implements IJsonRpcConnection {
     if (payload == 'closed') {
       this.onClose()
     } else {
+      // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
       this.events.emit("payload", payload);
     }
-
-    // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection
-    // TODO maybe? process the payload if I give it a different structure at the SP, i.e., like I'm doing with the senderTag
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
   }
 
@@ -208,4 +201,4 @@ export class WsConnection implements IJsonRpcConnection {
 
 }
 
-export default WsConnection;
+export default NymWsConnection;
