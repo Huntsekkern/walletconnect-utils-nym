@@ -2,7 +2,8 @@ import WebSocket, { MessageEvent } from "ws";
 import BiMap from 'bidirectional-map';
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
-  formatJsonRpcError, IJsonRpcConnection, parseConnectionError,
+  formatJsonRpcError,
+  IJsonRpcConnection, parseConnectionError,
   JsonRpcPayload,
   isReactNative,
   isWsUrl,
@@ -130,8 +131,8 @@ async function closeWS(senderTag: string): Promise<void> {
       return;
     }
 
-    socket.onclose = () => {
-      onClose(socket, senderTag);
+    socket.onclose = event => {
+      onClose(event, socket, senderTag);
       resolve();
     };
 
@@ -159,12 +160,13 @@ async function forwardRPC(senderTag: string, payload: any) {
 // onOpen is called when a new WS to a relay-server is created on request from a mixnet user.
 function onOpen(socket: WebSocket, senderTag: string) {
   socket.onmessage = (event: MessageEvent) => onPayload(senderTag, event);
-  socket.onclose = () => onClose(socket, senderTag);
+  socket.onclose = event => onClose(event, socket, senderTag);
 }
 
 // onClose is called when a mixnet user request to closes its WS connection
 // OR when the relay-server sends a close message to the WS.
-function onClose(socket: WebSocket, senderTag: string) {
+function onClose(event: CloseEvent, socket: WebSocket, senderTag: string) {
+  console.log(event);
   sendMessageToMixnet('closed', senderTag);
   tagToWSConn.delete(senderTag);
 }
