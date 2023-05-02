@@ -17,6 +17,8 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 // TODO
 const defaultRelayServerUrl = "wss://staging.relay.walletconnect.com";
 
+// TODO nearly everything can be private here as they are mostly triggered by incoming messages
+// But for unit-testing I made some part public, take into account and could reswitch to private later.
 export class NymWsServiceProvider {
   private port = "1978";
   private localClientUrl = "ws://127.0.0.1:" + this.port;
@@ -25,7 +27,7 @@ export class NymWsServiceProvider {
 
   // TODO not even sure I need it to be a Bidirectional Map as I'm passing senderTag as param to onClose/OnPayload.
   //private tagToWSConn: Map<string, WebSocket> = new Map();
-  private tagToWSConn: BiMap = new BiMap;
+  public tagToWSConn: BiMap = new BiMap;
 
   constructor() {
     // Set up and handle websocket connection to our desktop client.
@@ -97,7 +99,7 @@ export class NymWsServiceProvider {
   }
 
 // openWS opens a new WebSocket connection to a specified url for a given senderTag.
-  private async openWS(url: string, senderTag: string): Promise<void> {
+  public async openWS(url: string, senderTag: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!isWsUrl(url)) {
         // error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
@@ -118,7 +120,7 @@ export class NymWsServiceProvider {
   }
 
 // closeWS closes a WebSocket connection identified by the given senderTag.
-  private async closeWS(senderTag: string): Promise<void> {
+  public async closeWS(senderTag: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const socket: WebSocket = this.tagToWSConn.get(senderTag);
       if (typeof socket === "undefined") {
@@ -137,7 +139,7 @@ export class NymWsServiceProvider {
 
 
 // forwardRPC sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
-  private async  forwardRPC(senderTag: string, payload: any) {
+  public async forwardRPC(senderTag: string, payload: any) {
     const socket = this.tagToWSConn.get(senderTag);
     if (typeof socket === "undefined") {
       // do I return an error to the client or do I open a new WS connection to the relay server?
