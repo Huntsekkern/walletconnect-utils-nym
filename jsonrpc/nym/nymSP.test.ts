@@ -1,7 +1,6 @@
 import "mocha";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { WsConnection } from "./../src/ws";
 import { RELAY_URL } from "./shared/values";
 import * as relayAuth from "@walletconnect/relay-auth";
 import { toString } from "uint8arrays";
@@ -12,7 +11,11 @@ import { fromString } from "uint8arrays/from-string";
 
 import NymWsConnection from "./nym-ws";
 import NymWsServiceProvider from "./nym-ws-service_provider";
-import { describe } from "node:test"; // TODO not sure this is correct, and should rather install mocha
+import { safeJsonStringify } from "../../misc/safe-json/src";
+import { JsonRpcPayload } from "@walletconnect/jsonrpc-utils";
+import { safeJsonParse } from "@walletconnect/safe-json";
+import { JsonRpcRequest } from "../types/src";
+import { TEST_ID, TEST_JSONRPC_REQUEST, TEST_METHOD, TEST_PARAMS } from "../utils/test/shared";
 
 chai.use(chaiAsPromised);
 
@@ -35,7 +38,7 @@ Not sure I want to do that as part of the regular test suite...
 There is however no real alternative as far as I can think of,
 apart from manual testing of course, but which is nearly equivalent.
 
-Let's then say that this second batch of test will be in another file,
+Let's then say that this second batch of test will be in another file (now nymWCWS.test.ts)
 and that the current file is only taking inspiration from jsonrpc/ws-connection/test/index.test.ts
 but with the service provider instead of the WC client.
  */
@@ -65,6 +68,44 @@ const formatRelayUrl = async () => {
     auth,
   });
 };
+
+function mockWcRpcString(): string {
+  return safeJsonStringify(
+    {
+      "id" : "1",
+      "jsonrpc": "2.0",
+      "method": "irn_publish",
+      "params" : {
+        "topic" : "test_topic",
+        "message" : "test_message",
+        "ttl" : 30,
+        "tag" : 123,
+      }
+    });
+}
+
+function mockWcRpcBasic(): JsonRpcRequest {
+  return {
+    id: TEST_ID,
+    jsonrpc: "2.0",
+    method: TEST_METHOD,
+    params: TEST_PARAMS,
+  };
+}
+
+function mockWcRpcPublish(): JsonRpcRequest {
+  return {
+    id: TEST_ID,
+    jsonrpc: "2.0",
+    method: "irn_publish",
+    params: {
+      topic: "test_topic",
+      message: "test_message",
+      ttl: 30,
+      tag: 123
+    },
+  };
+}
 
 
 describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
@@ -113,8 +154,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("can open than close a connection", async () => {
       const SP = new NymWsServiceProvider();
       const senderTag = "tester";
-      let expectedError: Error | undefined;
-
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
       await SP.openWS(await formatRelayUrl(), senderTag);
@@ -126,7 +165,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       const SP = new NymWsServiceProvider();
       const senderTag = "tester";
       let expectedError: Error | undefined;
-
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
       await SP.openWS(await formatRelayUrl(), senderTag);
@@ -151,7 +189,15 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       const senderTag = "tester";
       await SP.openWS(await formatRelayUrl(), senderTag);
 
-      const RPCpayload = mockWcRpc();
+      const RPCpayload = mockWcRpcPublish();
+
+      const socket: WebSocket = SP.tagToWSConn.get(senderTag);
+      socket.onmessage = (e: MessageEvent) => {
+        chai.expect(typeof e.data !== "undefined").to.be.true;
+        const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+        console.log(payload);
+        // TODO just a quick console.log for now, to have a quick check of what comes back without caring about exact formatting
+      };
 
       try {
         await SP.forwardRPC(senderTag, RPCpayload);
@@ -159,12 +205,8 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
       }
 
-      // TODO might try to listen/catch to the onPayload response
-
     });
   });
 });
 
-
-// TODO the whole tests with the nym-ws.ts
 
