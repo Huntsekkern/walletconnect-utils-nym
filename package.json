@@ -35,9 +35,14 @@
   },
   "dependencies": {
     "@nymproject/sdk": "^1.1.7",
+    "@types/mocha": "^10.0.1",
     "@walletconnect/jsonrpc-utils": "^1.0.7",
     "@walletconnect/safe-json": "^1.0.2",
     "bidirectional-map": "^1.1.1",
+    "chai": "^4.3.7",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^10.2.0",
+    "uint8arrays": "^4.0.3",
     "ws": "^8.13.0"
   }
 }
