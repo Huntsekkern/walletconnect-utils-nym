@@ -18,8 +18,8 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 const isBrowser = () => typeof window !== "undefined";
 
-const nymApiUrl = 'https://validator.nymtech.net/api';
-const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
+const nymApiUrl = "https://validator.nymtech.net/api";
+const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 
 export class NymWsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
@@ -34,7 +34,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   //private senderTag = crypto.randomBytes(32).toString("base64");
 
   constructor(public url: string) {
-    // TODO: add the nym SP addr?
+    // TODO: add the nym SP addr? can be hardcoded
     if (!isWsUrl(url)) {
       throw new Error(`Provided URL is not compatible with WebSocket connection: ${url}`);
     }
@@ -66,7 +66,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   public async open(url: string = this.url): Promise<void> {
-    await this.register(url)
+    await this.register(url);
   }
 
   public async close(): Promise<void> {
@@ -78,7 +78,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
       // This must match my mini-protocol as a close order for the SP.
 
-      this.nymSend('close').catch(
+      this.nymSend("close").catch(
         e => console.log("failed to send the request to close a WSConn: " || e)
       );
 
@@ -91,7 +91,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   public async send(payload: JsonRpcPayload, context?: any): Promise<void> {
     try  {
-      await this.nymSend(safeJsonStringify(payload))
+      await this.nymSend(safeJsonStringify(payload));
     } catch (e) {
       this.onError(payload.id, e as Error);
     }
@@ -108,8 +108,8 @@ export class NymWsConnection implements IJsonRpcConnection {
     const nymPayload: Payload  = {
       message: payload,
     };
-    const recipient = '<< SERVICE PROVIDER ADDRESS GOES HERE >>'; // TODO. fix it or user-defined like the url param??
-    const SURBsGiven: number = 5;
+    const recipient = "<< SERVICE PROVIDER ADDRESS GOES HERE >>"; // TODO. fix it or user-defined like the url param??
+    const SURBsGiven = 5;
     await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
   }
 
@@ -124,19 +124,19 @@ export class NymWsConnection implements IJsonRpcConnection {
     (window as any).nym = nym;
 
     if (!nym) {
-      console.error('Oh no! Could not create client');
+      console.error("Oh no! Could not create client");
       return nym;
     }
 
 
     // start the client and connect to a gateway
     await nym.client.start({
-      clientId: 'My awesome client',  // TODO HERE
+      clientId: "My awesome client",  // TODO HERE
       nymApiUrl,
-      preferredGatewayIdentityKey, // TODO HERE
+      preferredGatewayIdentityKey, // TODO HERE can be harcoded for now, input in the future.
     });
 
-    this.onOpen(nym)
+    this.onOpen(nym);
 
     return nym;
   }
@@ -147,14 +147,14 @@ export class NymWsConnection implements IJsonRpcConnection {
     nym.events.subscribeToTextMessageReceivedEvent((e) => {
       // or nym.onmessage ???
       //console.log('Got a message: ', e.args.payload);
-      this.onPayload(e)
+      this.onPayload(e);
     });
     this.nym = nym;
 
     // send the open request along with senderTag and SURBs now
     // If using nymSend, important to be after the this.nym = nym;
     // and then as well that payload is 'open' as a chosen way to state "please open a conn"
-    this.nymSend('open:' + this.url).catch(
+    this.nymSend("open:" + this.url).catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
 
@@ -173,8 +173,8 @@ export class NymWsConnection implements IJsonRpcConnection {
     // const payload: JsonRpcPayload = typeof e.args.payload === "string" ? safeJsonParse(e.args.payload) : e.args.payload;
     const payload: string = e.args.payload;
 
-    if (payload == 'closed') {
-      this.onClose()
+    if (payload == "closed") {
+      this.onClose();
     } else {
       // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
       this.events.emit("payload", payload);

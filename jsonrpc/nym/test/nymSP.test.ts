@@ -1,7 +1,6 @@
 import "mocha";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { RELAY_URL } from "./shared/values";
 import * as relayAuth from "@walletconnect/relay-auth";
 import { toString } from "uint8arrays";
 import { randomBytes } from "@stablelib/random";
@@ -9,22 +8,19 @@ import { formatRelayRpcUrl } from "@walletconnect/utils";
 import { version } from "@walletconnect/utils/package.json";
 import { fromString } from "uint8arrays/from-string";
 
-import NymWsConnection from "./nym-ws";
-import NymWsServiceProvider from "./nym-ws-service_provider";
-import { safeJsonStringify } from "../../misc/safe-json/src";
-import { JsonRpcPayload } from "@walletconnect/jsonrpc-utils";
-import { safeJsonParse } from "@walletconnect/safe-json";
-import { JsonRpcRequest } from "../types/src";
-import { TEST_ID, TEST_JSONRPC_REQUEST, TEST_METHOD, TEST_PARAMS } from "../utils/test/shared";
+import NymWsServiceProvider from "../src/nym-ws-service_provider";
+import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
+import { JsonRpcPayload, JsonRpcRequest } from "@walletconnect/jsonrpc-utils";
 
 chai.use(chaiAsPromised);
 
-
-
 const BASE16 = "base16";
 
-
 const RELAY_URL = "wss://staging.relay.walletconnect.com";
+
+const TEST_ID = 1;
+const TEST_METHOD = "test_method";
+const TEST_PARAMS = { something: true };
 
 /*
 Logic should be:
@@ -80,7 +76,7 @@ function mockWcRpcString(): string {
         "message" : "test_message",
         "ttl" : 30,
         "tag" : 123,
-      }
+      },
     });
 }
 
@@ -102,7 +98,7 @@ function mockWcRpcPublish(): JsonRpcRequest {
       topic: "test_topic",
       message: "test_message",
       ttl: 30,
-      tag: 123
+      tag: 123,
     },
   };
 }
