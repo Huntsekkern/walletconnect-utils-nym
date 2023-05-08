@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["./src/**/*"],
+  "include": ["./src/**/*", "src/nym-ws.ts", "src/nym-ws-service_provider.ts"],
   "compilerOptions": {
     "outDir": "./dist"
   }

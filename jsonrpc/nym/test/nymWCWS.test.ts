@@ -8,8 +8,8 @@ import { formatRelayRpcUrl } from "@walletconnect/utils";
 import { version } from "@walletconnect/utils/package.json";
 import { fromString } from "uint8arrays/from-string";
 
-import NymWsConnection from "../nym-ws";
-import NymWsServiceProvider from "../nym-ws-service_provider";
+import NymWsConnection from "../src/nym-ws";
+import NymWsServiceProvider from "../src/nym-ws-service_provider";
 import { safeJsonStringify } from "@walletconnect/safe-json";
 import { JsonRpcRequest } from "@walletconnect/jsonrpc-utils";
 

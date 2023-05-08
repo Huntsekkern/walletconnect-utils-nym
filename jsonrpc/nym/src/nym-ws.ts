@@ -18,8 +18,10 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 const isBrowser = () => typeof window !== "undefined";
 
+// TODO can be harcoded for now, input in the future, from options all the way down from core.ts (in WC monorepo)
 const nymApiUrl = "https://validator.nymtech.net/api";
 const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
+const serviceProviderDefaultAddress = ""; // TODO
 
 export class NymWsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
@@ -108,7 +110,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     const nymPayload: Payload  = {
       message: payload,
     };
-    const recipient = "<< SERVICE PROVIDER ADDRESS GOES HERE >>"; // TODO. fix it or user-defined like the url param??
+    const recipient = serviceProviderDefaultAddress;
     const SURBsGiven = 5;
     await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
   }
@@ -131,9 +133,9 @@ export class NymWsConnection implements IJsonRpcConnection {
 
     // start the client and connect to a gateway
     await nym.client.start({
-      clientId: "My awesome client",  // TODO HERE
+      clientId: "WC through Nym mixnet client",  // TODO HERE
       nymApiUrl,
-      preferredGatewayIdentityKey, // TODO HERE can be harcoded for now, input in the future.
+      preferredGatewayIdentityKey,
     });
 
     this.onOpen(nym);
