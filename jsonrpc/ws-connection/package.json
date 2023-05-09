@@ -44,7 +44,6 @@
     "prepublishOnly": "npm run test && npm run build"
   },
   "dependencies": {
-    "@nymproject/sdk": "^1.1.7",
     "@walletconnect/jsonrpc-utils": "^1.0.6",
     "@walletconnect/safe-json": "^1.0.2",
     "events": "^3.3.0",
