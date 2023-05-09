@@ -2,12 +2,12 @@
   "name": "walletconnect-utils",
   "description": "Monorepo for Javascript Utilities for WalletConnect",
   "private": true,
-  "author": "WalletConnect, Inc. <walletconnect.com>",
+  "author": "Huntsekker and WalletConnect, Inc. <walletconnect.com>",
   "license": "MIT",
-  "homepage": "https://github.com/WalletConnect/walletconnect-utils/",
+  "homepage": "https://github.com/Huntsekkern/walletconnect-utils-nym",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WalletConnect/walletconnect-utils.git"
+    "url": "git+https://github.com/Huntsekkern/walletconnect-utils-nym.git"
   },
   "bugs": {
     "url": "https://github.com/WalletConnect/walletconnect-utils/issues"
