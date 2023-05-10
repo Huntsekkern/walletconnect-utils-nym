@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { EventEmitter } from "events";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
