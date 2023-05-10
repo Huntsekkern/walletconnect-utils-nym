@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import WebSocket, { MessageEvent } from "ws";
 import BiMap from "bidirectional-map";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
