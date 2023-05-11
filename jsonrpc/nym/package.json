@@ -18,7 +18,7 @@
     "build:cjs": "npx tsc -p tsconfig.cjs.json",
     "build:umd": "webpack",
     "build:esm": "npx tsc -p tsconfig.esm.json",
-    "build": "run-s build:pre build:cjs build:esm build:umd",
+    "build": "run-s build:pre build:cjs build:esm",
     "test": "env TS_NODE_PROJECT=\"tsconfig.cjs.json\" mocha --timeout 5000 --exit -r ts-node/register ./test/**/*.{test,spec}.ts",
     "lint": "eslint -c '../../.eslintrc' --fix './src/**/*.ts'",
     "npm-publish:latest": "npm publish --access public --tag latest",
