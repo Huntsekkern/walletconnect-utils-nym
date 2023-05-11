@@ -1,6 +1,8 @@
 {
   "name": "nym-ws-connection",
   "version": "1.0.0",
+  "author": "Huntsekker",
+  "license": "MIT",
   "description": "WS Connection for JSON-RPC running across Nym Mixnet",
   "main": "index.js",
   "directories": {
@@ -12,15 +14,13 @@
     "build:cjs": "npx tsc -p tsconfig.cjs.json",
     "build:umd": "webpack",
     "build:esm": "npx tsc -p tsconfig.esm.json",
-    "build": "run-s build:pre build:cjs build:esm",
-    "test": "env TS_NODE_PROJECT=\"tsconfig.cjs.json\" mocha --timeout 5000 --exit -r ts-node/register ./test/**/*.test.ts",
+    "build": "run-s build:pre build:cjs build:esm build:umd",
+    "test": "env TS_NODE_PROJECT=\"tsconfig.cjs.json\" mocha --timeout 5000 --exit -r ts-node/register ./test/**/*.{test,spec}.ts",
     "lint": "eslint -c '../../.eslintrc' --fix './src/**/*.ts'",
     "npm-publish:latest": "npm publish --access public --tag latest",
     "npm-publish:canary": "npm publish --access public --tag canary",
     "prepublishOnly": "npm run test && npm run build"
   },
-  "author": "Huntsekker",
-  "license": "MIT",
   "dependencies": {
     "@nymproject/sdk": "^1.1.7",
     "@walletconnect/jsonrpc-utils": "^1.0.6",
