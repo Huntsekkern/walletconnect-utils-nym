@@ -30,9 +30,10 @@ export class NymWsServiceProvider {
   //private tagToWSConn: Map<string, WebSocket> = new Map();
   public tagToWSConn: BiMap = new BiMap;
 
-  constructor() {
+  // Always call setup after new NymWsServiceProvider(); ! Necessary because the constructor cannot wait.
+  public async setup() {
     // Set up and handle websocket connection to our desktop client.
-    this.mixnetWebsocketConnection = this.connectWebsocket(this.localClientUrl).then(function (c) {
+    this.mixnetWebsocketConnection = await this.connectWebsocket(this.localClientUrl).then(function (c) {
       return c;
     }).catch((err) => {
       console.log("Websocket connection error. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");

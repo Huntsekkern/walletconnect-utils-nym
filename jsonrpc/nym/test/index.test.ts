@@ -106,15 +106,17 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("init", () => {
     it("initialises, requires Nym client to be running", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       chai.expect(SP instanceof NymWsServiceProvider).to.be.true;
 
       SP.terminateServiceProvider();
     });
   });
 
-/*  describe("open", () => {
+  describe("open", () => {
     it("can open a connection with a valid relay `wss:` URL", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const senderTag = "tester";
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
@@ -134,6 +136,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         auth,
       });
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const senderTag = "tester";
       let expectedError: Error | undefined;
 
@@ -153,6 +156,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("close", () => {
     it("can open than close a connection", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const senderTag = "tester";
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
@@ -166,6 +170,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 
     it("can not double close a connection, with correct error message", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const senderTag = "tester";
       let expectedError: Error | undefined;
 
@@ -191,6 +196,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("forwardRPC", () => {
     it("send a valid WC RPC", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const senderTag = "tester";
       await SP.openWS(await formatRelayUrl(), senderTag);
 
@@ -212,7 +218,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 
       SP.terminateServiceProvider();
     });
-  });*/
+  });
 });
 
 // TODO fix that the SP I'm spinning in the tests match the SP Nym Address given as default in nym-ws
@@ -242,6 +248,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("open", () => {
     it("can open a connection with a valid relay `wss:` URL", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
       chai.expect(conn.connected).to.be.false;
@@ -260,6 +267,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         auth,
       });
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
       let expectedError: Error | undefined;
 
@@ -277,6 +285,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("close", () => {
     it("can open than close a connection", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
       let expectedError: Error | undefined;
 
@@ -292,6 +301,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 
     it("can not double close a connection, with correct error message", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
       let expectedError: Error | undefined;
 
@@ -318,6 +328,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("forwardRPC", () => {
     it("send a valid WC RPC", async () => {
       const SP = new NymWsServiceProvider();
+      await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
       await conn.open();
 
