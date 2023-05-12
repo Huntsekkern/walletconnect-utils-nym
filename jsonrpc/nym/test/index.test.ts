@@ -8,6 +8,7 @@ import { formatRelayRpcUrl } from "@walletconnect/utils";
 import { version } from "@walletconnect/utils/package.json";
 import { fromString } from "uint8arrays/from-string";
 
+import NymWsConnection from "../src/nym-ws";
 import NymWsServiceProvider from "../src/nym-ws-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
 import { JsonRpcPayload, JsonRpcRequest } from "@walletconnect/jsonrpc-utils";
@@ -28,15 +29,12 @@ Try to use the permanent staging wc relay, but create the wss connection from th
 nym-ws-service-provider.ts instead of ws.ts
 This is probably a useful reference: jsonrpc/ws-connection/test/index.test.ts
 
-Once this test works, the second step would be to test both nym-ws and nym-ws-service-provider
+Once this test works, the second step is to test both nym-ws and nym-ws-service-provider
 conjointly, but that implies already sending messages on the nym mixnet.
-Not sure I want to do that as part of the regular test suite...
-There is however no real alternative as far as I can think of,
-apart from manual testing of course, but which is nearly equivalent.
+To be fair, the first step also requires the mixnet because the way the ws-service-provider works is
+by starting and learning its mixnet address on start-up. So it's not that weird to have both in the same file anyway.
 
-Let's then say that this second batch of test will be in another file (now nymWCWS.test.ts)
-and that the current file is only taking inspiration from jsonrpc/ws-connection/test/index.test.ts
-but with the service provider instead of the WC client.
+Both of those batch of tests are done in this file because of JS/TS resolution issue.
  */
 
 function generateRandomBytes32(): string {
@@ -205,4 +203,118 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   });
 });
 
+// TODO fix that the SP I'm spinning in the tests match the SP Nym Address given as default in nym-ws
 
+describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
+  describe("init", () => {
+    it("does not initialise with an invalid `ws` string", async () => {
+      chai
+        .expect(() => new NymWsConnection("invalid"))
+        .to.throw("Provided URL is not compatible with WebSocket connection: invalid");
+    });
+    it("initialises with a `ws:` string", async () => {
+      const conn = new NymWsConnection(await formatRelayUrl());
+      chai.expect(conn instanceof NymWsConnection).to.be.true;
+    });
+    it("initialises with a `wss:` string", async () => {
+      const conn = new NymWsConnection(await formatRelayUrl());
+      chai.expect(conn instanceof NymWsConnection).to.be.true;
+    });
+  });
+
+  describe("open", () => {
+    it("can open a connection with a valid relay `wss:` URL", async () => {
+      const SP = new NymWsServiceProvider();
+      const conn = new NymWsConnection(await formatRelayUrl());
+
+      chai.expect(conn.connected).to.be.false;
+      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      await conn.open();
+      chai.expect(conn.connected).to.be.true;
+      chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+    });
+    it("rejects with an error if `wss:` URL is valid but connection cannot be made", async () => {
+      const auth = await signJWT(RELAY_URL);
+      const rpcUrlWithoutProjectId = formatRelayRpcUrl({
+        protocol: "wc",
+        version: 2,
+        sdkVersion: version,
+        relayUrl: RELAY_URL,
+        auth,
+      });
+      const SP = new NymWsServiceProvider();
+      const conn = new NymWsConnection(rpcUrlWithoutProjectId);
+      let expectedError: Error | undefined;
+
+      try {
+        await conn.open();
+      } catch (error) {
+        expectedError = error;
+      }
+      chai.expect(expectedError instanceof Error).to.be.true;
+      chai.expect((expectedError as Error).message).to.equal("Unexpected server response: 400");
+    });
+
+  });
+
+  describe("close", () => {
+    it("can open than close a connection", async () => {
+      const SP = new NymWsServiceProvider();
+      const conn = new NymWsConnection(await formatRelayUrl());
+      let expectedError: Error | undefined;
+
+      chai.expect(conn.connected).to.be.false;
+      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      await conn.open();
+      chai.expect(conn.connected).to.be.true;
+      chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+      await conn.close();
+      chai.expect(conn.connected).to.be.false;
+      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+    });
+
+    it("can not double close a connection, with correct error message", async () => {
+      const SP = new NymWsServiceProvider();
+      const conn = new NymWsConnection(await formatRelayUrl());
+      let expectedError: Error | undefined;
+
+      chai.expect(conn.connected).to.be.false;
+      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      await conn.open();
+      chai.expect(conn.connected).to.be.true;
+      chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+      await conn.close();
+      chai.expect(conn.connected).to.be.false;
+      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+
+      try {
+        await conn.close();
+      } catch (error) {
+        expectedError = error;
+      }
+
+      chai.expect(expectedError instanceof Error).to.be.true;
+      chai.expect((expectedError as Error).message).to.equal("Connection already closed");
+    });
+  });
+
+  describe("forwardRPC", () => {
+    it("send a valid WC RPC", async () => {
+      const SP = new NymWsServiceProvider();
+      const conn = new NymWsConnection(await formatRelayUrl());
+      await conn.open();
+
+      const RPCpayload = mockWcRpcPublish();
+
+      try {
+        await conn.send(RPCpayload);
+      } catch (error) {
+        chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
+      }
+
+      // the console.logs should happen automatically for the answers, but it would be good to check them
+      // to ensure that everything works smoothly.
+
+    });
+  });
+});
