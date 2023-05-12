@@ -227,6 +227,14 @@ export class NymWsServiceProvider {
 
     });
   }
+
+  public terminateServiceProvider() {
+    if (typeof this.mixnetWebsocketConnection === "undefined") {
+      console.log("serviceProvider not running already");
+    } else {
+      this.mixnetWebsocketConnection.close();
+    }
+  }
 }
 
 

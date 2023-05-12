@@ -107,6 +107,8 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("initialises, requires Nym client to be running", async () => {
       const SP = new NymWsServiceProvider();
       chai.expect(SP instanceof NymWsServiceProvider).to.be.true;
+
+      SP.terminateServiceProvider();
     });
   });
 
@@ -118,7 +120,10 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
       await SP.openWS(await formatRelayUrl(), senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
+
+      SP.terminateServiceProvider();
     });
+
     it("rejects with an error if `wss:` URL is valid but connection cannot be made", async () => {
       const auth = await signJWT(RELAY_URL);
       const rpcUrlWithoutProjectId = formatRelayRpcUrl({
@@ -139,8 +144,9 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       }
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Unexpected server response: 400");
-    });
 
+      SP.terminateServiceProvider();
+    });
 
   });
 
@@ -154,7 +160,10 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
       await SP.closeWS(senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
+
+      SP.terminateServiceProvider();
     });
+
     it("can not double close a connection, with correct error message", async () => {
       const SP = new NymWsServiceProvider();
       const senderTag = "tester";
@@ -174,6 +183,8 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Connection already closed");
+
+      SP.terminateServiceProvider();
     });
   });
 
@@ -199,6 +210,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
       }
 
+      SP.terminateServiceProvider();
     });
   });
 });
