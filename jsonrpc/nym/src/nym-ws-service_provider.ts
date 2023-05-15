@@ -112,6 +112,7 @@ export class NymWsServiceProvider {
       const socket: WebSocket = new WebSocket(url, [], opts);
       (socket as any).on("error", (errorEvent: any) => {
         console.log(errorEvent);
+        reject(errorEvent);
       });
       socket.onopen = () => {
         this.tagToWSConn.set(senderTag, socket);
@@ -141,18 +142,25 @@ export class NymWsServiceProvider {
 
 
 // forwardRPC sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
-  public async forwardRPC(senderTag: string, payload: any) {
+  public async forwardRPC(senderTag: string, payload: any): Promise<void> {
     const socket = this.tagToWSConn.get(senderTag);
     if (typeof socket === "undefined") {
       // do I return an error to the client or do I open a new WS connection to the relay server?
       // I'd say the second option. But I'm lacking the url now...
       await this.openWS(defaultRelayServerUrl, senderTag);
     }
-    try {
-      socket.send(safeJsonStringify(payload));
-    } catch (e) {
-      this.onError(payload.id, e as Error, senderTag);
-    }
+
+    return new Promise<void>((resolve, reject) => {
+      try {
+        socket.send(safeJsonStringify(payload));
+      } catch (e) {
+        console.log(e);
+        this.onError(payload.id, e as Error, senderTag);
+        reject(e);
+      }
+
+      resolve();
+    });
   }
 
 // onOpen is called when a new WS to a relay-server is created on request from a mixnet user.
@@ -164,7 +172,8 @@ export class NymWsServiceProvider {
 // onClose is called when a mixnet user request to closes its WS connection
 // OR when the relay-server sends a close message to the WS.
   private onClose(event: CloseEvent, socket: WebSocket, senderTag: string) {
-    console.log(event);
+    //console.log(event);
+    console.log("Closing the Relay WS connection for " + senderTag);
     this.sendMessageToMixnet("closed", senderTag);
     this.tagToWSConn.delete(senderTag);
   }
