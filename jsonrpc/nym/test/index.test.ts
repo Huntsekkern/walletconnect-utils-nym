@@ -11,7 +11,7 @@ import { fromString } from "uint8arrays/from-string";
 import NymWsConnection from "../src/nym-ws";
 import NymWsServiceProvider from "../src/nym-ws-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
-import { JsonRpcPayload, JsonRpcRequest } from "@walletconnect/jsonrpc-utils";
+import { JsonRpcPayload, JsonRpcRequest, JsonRpcResult } from "@walletconnect/jsonrpc-utils";
 
 chai.use(chaiAsPromised);
 
@@ -22,6 +22,13 @@ const RELAY_URL = "wss://staging.relay.walletconnect.com";
 const TEST_ID = 1;
 const TEST_METHOD = "test_method";
 const TEST_PARAMS = { something: true };
+const TEST_RESULT = true;
+
+const TEST_JSONRPC_RESULT = {
+  id: TEST_ID,
+  jsonrpc: "2.0",
+  result: TEST_RESULT,
+};
 
 /*
 Logic should be:
@@ -70,7 +77,7 @@ function mockWcRpcString(): string {
       "jsonrpc": "2.0",
       "method": "irn_publish",
       "params" : {
-        "topic" : "test_topic",
+        "topic" : generateRandomBytes32(),  //hex string - 32 bytes
         "message" : "test_message",
         "ttl" : 30,
         "tag" : 123,
@@ -89,18 +96,19 @@ function mockWcRpcBasic(): JsonRpcRequest {
 
 function mockWcRpcPublish(): JsonRpcRequest {
   return {
-    id: TEST_ID,
+    id: TEST_ID, // hex string - 32 bytes
     jsonrpc: "2.0",
     method: "irn_publish",
     params: {
-      topic: "test_topic",
-      message: "test_message",
-      ttl: 30,
-      tag: 123,
+      topic: generateRandomBytes32(), //hex string - 32 bytes
+      message: "test_message", // utf8 string - variable
+      ttl: 30, // uint32 - 4 bytes
+      tag: 123, // uint32 - 4 bytes
     },
   };
 }
 
+const senderTag = "testerToSixteenAddMor"; // That's what Nym expects as tag length.
 
 describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("init", () => {
@@ -117,7 +125,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("can open a connection with a valid relay `wss:` URL", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const senderTag = "tester";
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
       await SP.openWS(await formatRelayUrl(), senderTag);
@@ -137,7 +144,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       });
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const senderTag = "tester";
       let expectedError: Error | undefined;
 
       try {
@@ -157,7 +163,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("can open than close a connection", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const senderTag = "tester";
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
       await SP.openWS(await formatRelayUrl(), senderTag);
@@ -171,7 +176,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("can not double close a connection, with correct error message", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const senderTag = "tester";
       let expectedError: Error | undefined;
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
@@ -197,7 +201,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("send a valid WC RPC", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const senderTag = "tester";
       await SP.openWS(await formatRelayUrl(), senderTag);
 
       const RPCpayload = mockWcRpcPublish();
@@ -205,9 +208,10 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       const socket: WebSocket = SP.tagToWSConn.get(senderTag);
       socket.onmessage = (e: MessageEvent) => {
         chai.expect(typeof e.data !== "undefined").to.be.true;
-        const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+        const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
         console.log(payload);
-        // TODO just a quick console.log for now, to have a quick check of what comes back without caring about exact formatting
+        console.log(TEST_JSONRPC_RESULT);
+        chai.expect(JSON.stringify(payload).valueOf() === JSON.stringify(TEST_JSONRPC_RESULT).valueOf()); // Lovely javascript.
       };
 
       try {
