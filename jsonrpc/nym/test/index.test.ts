@@ -232,7 +232,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 // And the difference in nym-ws is that it does import { createNymMixnetClient, NymMixnetClient, Payload, StringMessageReceivedEvent } from "@nymproject/sdk";
 // So maybe it does come from there
 
-/*describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
+describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
   describe("init", () => {
     it("does not initialise with an invalid `ws` string", async () => {
       chai
@@ -349,4 +349,4 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 
     });
   });
-});*/
+});
