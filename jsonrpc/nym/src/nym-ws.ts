@@ -16,6 +16,27 @@ import crypto from "crypto";
 
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
+/*class Payload {
+  message: string | Uint8Array = "hey";
+}
+class StringMessageReceivedEvent {
+  args: Arg = new Arg;
+}
+class Arg {
+  payload: string | undefined;
+}*/
+/*class NymMixnetClient {
+  function
+  events: any;
+  client: any;
+
+  public send() {
+    console.log("hey");
+  }
+}
+async function createNymMixnetClient(): Promise<NymMixnetClient> {
+  return new NymMixnetClient();
+}*/
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -23,6 +44,9 @@ const isBrowser = () => typeof window !== "undefined";
 const nymApiUrl = "https://validator.nymtech.net/api";
 const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 const serviceProviderDefaultAddress = ""; // TODO
+
+
+
 
 export class NymWsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
