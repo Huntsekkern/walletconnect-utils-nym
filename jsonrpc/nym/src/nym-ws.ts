@@ -9,34 +9,12 @@ import {
   isWsUrl,
   parseConnectionError,
 } from "@walletconnect/jsonrpc-utils";
-import { createNymMixnetClient, NymMixnetClient, Payload, StringMessageReceivedEvent } from "@nymproject/sdk";
 
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 import crypto from "crypto";
 
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
-/*class Payload {
-  message: string | Uint8Array = "hey";
-}
-class StringMessageReceivedEvent {
-  args: Arg = new Arg;
-}
-class Arg {
-  payload: string | undefined;
-}*/
-/*class NymMixnetClient {
-  function
-  events: any;
-  client: any;
-
-  public send() {
-    console.log("hey");
-  }
-}
-async function createNymMixnetClient(): Promise<NymMixnetClient> {
-  return new NymMixnetClient();
-}*/
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -46,15 +24,16 @@ const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMb
 const serviceProviderDefaultAddress = ""; // TODO
 
 
-
-
 export class NymWsConnection implements IJsonRpcConnection {
   // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
   public events = new EventEmitter();
 
   private registering = false;
 
-  private nym: NymMixnetClient | undefined;
+  private port = "1977";
+  private localClientUrl = "ws://127.0.0.1:" + this.port;
+  private mixnetWebsocketConnection: WebSocket | any;
+  private ourAddress: string | undefined;
 
   // senderTag is handled automatically by the Rust client, I hope it also works like that in TS.
   // private senderTag = crypto.randomBytes(32).toString("hex");
@@ -68,8 +47,9 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.url = url;
   }
 
+
   get connected(): boolean {
-    return typeof this.nym !== "undefined";
+    return typeof this.mixnetWebsocketConnection !== "undefined";
   }
 
   get connecting(): boolean {
@@ -98,7 +78,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   public async close(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      if (typeof this.nym === "undefined") {
+      if (typeof this.mixnetWebsocketConnection === "undefined") {
         reject(new Error("Connection already closed"));
         return;
       }
@@ -128,55 +108,55 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   // nymSend wraps nym.client.send() to reduce code redundancy.
   private async nymSend(payload: string): Promise<void> {
-    if (typeof this.nym === "undefined") {
-      this.nym = await this.register();
+    if (typeof this.mixnetWebsocketConnection === "undefined") {
+      this.mixnetWebsocketConnection = await this.register();
     }
 
-    const nymPayload: Payload  = {
-      message: payload,
-    };
     const recipient = serviceProviderDefaultAddress;
     const SURBsGiven = 5;
-    await this.nym.client.send({ payload: nymPayload, recipient: recipient, replySurbs: SURBsGiven });
+
+    const message = {
+      type: "sendAnonymous",
+      message: JSON.stringify(payload),
+      recipient: recipient,
+      replySurbs: SURBsGiven,
+    };
+
+    // Send our message object out via our websocket connection.
+    this.mixnetWebsocketConnection.send(JSON.stringify(message));
   }
 
 
-  private async register(url: string = this.url): Promise<NymMixnetClient> {
+  private async register(url: string = this.url): Promise<void> {
     this.url = url;
     this.registering = true;
 
-    const nym = await createNymMixnetClient();
 
-    // add nym client to the Window globally, so that it can be used from the dev tools console
-    (window as any).nym = nym;
+    // Set up and handle websocket connection to our desktop client.
+    this.mixnetWebsocketConnection = await this.connectWebsocket(this.localClientUrl).then(function (c) {
+      return c;
+    }).catch((err) => {
+      console.log("Websocket connection error. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
+      console.log(err);
+    });
 
-    if (!nym) {
+    if (!this.mixnetWebsocketConnection) {
       console.error("Oh no! Could not create client");
-      return nym;
+      return;
     }
 
+    this.onOpen(this.mixnetWebsocketConnection);
 
-    // start the client and connect to a gateway
-    await nym.client.start({
-      clientId: "WC through Nym mixnet client",  // TODO HERE
-      nymApiUrl,
-      preferredGatewayIdentityKey,
-    });
-
-    this.onOpen(nym);
-
-    return nym;
+    return;
   }
 
-  private onOpen(nym: NymMixnetClient) {
-    // show message payload content when received
-    // TODO might want to subscribe to all types of message? raw and binary too?
-    nym.events.subscribeToTextMessageReceivedEvent((e) => {
-      // or nym.onmessage ???
+  private onOpen(mixnetWebsocketConnection: WebSocket) {
+    this.mixnetWebsocketConnection.onmessage = (e: any) => {
       //console.log('Got a message: ', e.args.payload);
       this.onPayload(e);
-    });
-    this.nym = nym;
+    };
+
+    this.sendSelfAddressRequest();
 
     // send the open request along with senderTag and SURBs now
     // If using nymSend, important to be after the this.nym = nym;
@@ -190,22 +170,33 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   private onClose() {
-    this.nym = undefined;
+    this.mixnetWebsocketConnection = undefined;
     this.registering = false;
     this.events.emit("close");
   }
 
-  private onPayload(e: StringMessageReceivedEvent) {
-    if (typeof e.args.payload === "undefined") return;
-    // const payload: JsonRpcPayload = typeof e.args.payload === "string" ? safeJsonParse(e.args.payload) : e.args.payload;
-    const payload: string = e.args.payload;
-
-    if (payload == "closed") {
-      this.onClose();
-    } else {
-      // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
-      this.events.emit("payload", payload);
+  private onPayload(e) {
+    try {
+      const response = JSON.parse(e.data);
+      if (response.type == "error") {
+        console.log("Server responded with error: ");
+        this.onError(0, response.message); // TODO id?
+      } else if (response.type == "selfAddress") {
+        this.ourAddress = response.address;
+        console.log("Our address is:  " + this.ourAddress + ", we will now send messages to ourself.");
+      } else if (response.type == "received") {
+        const payload: string = response.message;
+        if (payload == "closed") {
+          this.onClose();
+        } else {
+          // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
+          this.events.emit("payload", payload);
+        }
+      }
+    } catch (_) {
+      console.log(e.data);
     }
+
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
   }
 
@@ -223,6 +214,40 @@ export class NymWsConnection implements IJsonRpcConnection {
   private resetMaxListeners() {
     if (this.events.getMaxListeners() > EVENT_EMITTER_MAX_LISTENERS_DEFAULT) {
       this.events.setMaxListeners(EVENT_EMITTER_MAX_LISTENERS_DEFAULT);
+    }
+  }
+
+
+  // ==========================================NYM CLIENT FUNCS=====================
+
+  // Send a message to the mixnet client, asking what our own address is.
+  private sendSelfAddressRequest() {
+    const selfAddress = {
+      type: "selfAddress",
+    };
+    this.mixnetWebsocketConnection.send(JSON.stringify(selfAddress));
+  }
+
+  // Function that connects our application to the mixnet Websocket. We want to call this first in our main function.
+  private connectWebsocket(url: string) {
+    return new Promise(function (resolve, reject) {
+      const server = new WebSocket(url);
+      console.log("connecting to Mixnet Websocket (Nym Client)...");
+      server.onopen = function () {
+        resolve(server);
+      };
+      server.onerror = function (err) {
+        reject(err);
+      };
+
+    });
+  }
+
+  public terminateClient() {
+    if (typeof this.mixnetWebsocketConnection === "undefined") {
+      console.log("client not running already");
+    } else {
+      this.mixnetWebsocketConnection.close();
     }
   }
 
