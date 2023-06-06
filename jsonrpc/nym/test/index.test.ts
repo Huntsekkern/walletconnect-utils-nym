@@ -258,7 +258,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(await formatRelayUrl());
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      chai.expect(SP.tagToWSConn).to.be.empty;
       await conn.open();
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
@@ -301,13 +301,13 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       let expectedError: Error | undefined;
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      chai.expect(SP.tagToWSConn).to.be.empty;
       await conn.open();
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
       await conn.close();
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      chai.expect(SP.tagToWSConn).to.be.empty;
 
       conn.terminateClient();
       SP.terminateServiceProvider();
@@ -320,13 +320,13 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       let expectedError: Error | undefined;
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      chai.expect(SP.tagToWSConn).to.be.empty;
       await conn.open();
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
       await conn.close();
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.keys).to.be.empty;
+      chai.expect(SP.tagToWSConn).to.be.empty;
 
       try {
         await conn.close();
