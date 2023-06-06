@@ -242,10 +242,12 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     it("initialises with a `ws:` string", async () => {
       const conn = new NymWsConnection(await formatRelayUrl());
       chai.expect(conn instanceof NymWsConnection).to.be.true;
+      conn.terminateClient();
     });
     it("initialises with a `wss:` string", async () => {
       const conn = new NymWsConnection(await formatRelayUrl());
       chai.expect(conn instanceof NymWsConnection).to.be.true;
+      conn.terminateClient();
     });
   });
 
@@ -260,6 +262,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await conn.open();
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+      conn.terminateClient();
+      SP.terminateServiceProvider();
     });
     it("rejects with an error if `wss:` URL is valid but connection cannot be made", async () => {
       const auth = await signJWT(RELAY_URL);
@@ -282,6 +286,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       }
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Unexpected server response: 400");
+
+      conn.terminateClient();
+      SP.terminateServiceProvider();
     });
 
   });
@@ -301,6 +308,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await conn.close();
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.keys).to.be.empty;
+
+      conn.terminateClient();
+      SP.terminateServiceProvider();
     });
 
     it("can not double close a connection, with correct error message", async () => {
@@ -326,6 +336,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Connection already closed");
+
+      conn.terminateClient();
+      SP.terminateServiceProvider();
     });
   });
 
@@ -347,6 +360,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // the console.logs should happen automatically for the answers, but it would be good to check them
       // to ensure that everything works smoothly.
 
+      conn.terminateClient();
+      SP.terminateServiceProvider();
     });
   });
 });
