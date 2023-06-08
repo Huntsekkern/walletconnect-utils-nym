@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import "mocha";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -160,7 +161,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   });
 
   describe("close", () => {
-    it("can open than close a connection", async () => {
+    it("can open then close a connection", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
 
@@ -260,6 +261,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await conn.open();
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.keys()).to.not.be.empty;
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
       conn.terminateClient();
       SP.terminateServiceProvider();
     });
@@ -282,6 +286,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       } catch (error) {
         expectedError = error;
       }
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
+
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Unexpected server response: 400");
 
@@ -292,7 +300,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
   });
 
   describe("close", () => {
-    it("can open than close a connection", async () => {
+    it("can open then close a connection", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
@@ -306,6 +314,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await conn.close();
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.keys()).to.be.empty;
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
 
       conn.terminateClient();
       SP.terminateServiceProvider();
@@ -335,6 +346,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Connection already closed");
 
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
       conn.terminateClient();
       SP.terminateServiceProvider();
     });
@@ -358,6 +372,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // the console.logs should happen automatically for the answers, but it would be good to check them
       // to ensure that everything works smoothly.
 
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
       conn.terminateClient();
       SP.terminateServiceProvider();
     });

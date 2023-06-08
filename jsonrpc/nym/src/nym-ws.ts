@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
+import WebSocket from "ws";
 import { EventEmitter } from "events";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
   formatJsonRpcError,
   IJsonRpcConnection,
   JsonRpcPayload,
-  isReactNative, isLocalhostUrl,
   isWsUrl,
   parseConnectionError,
 } from "@walletconnect/jsonrpc-utils";
@@ -21,7 +21,8 @@ const isBrowser = () => typeof window !== "undefined";
 // TODO can be harcoded for now, input in the future, from options all the way down from core.ts (in WC monorepo)
 const nymApiUrl = "https://validator.nymtech.net/api";
 const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
-const serviceProviderDefaultAddress = ""; // TODO
+// TODO, this is hardcoded from one particular instance of a Nym client
+const serviceProviderDefaultAddress = "2t8NNyj6zw5qHkNi1KwJxoQPcGVbZ9kq6PLhmnTDxzex.FHeSidBHTpTsNjmyg7XdvZbcMHP5bdchTybcAtRE8d4@5EpkkrMFYAM3XcaztXnZwBWquURHSKsyc9JxUCengDFS";
 
 
 export class NymWsConnection implements IJsonRpcConnection {
@@ -138,16 +139,21 @@ export class NymWsConnection implements IJsonRpcConnection {
     }).catch((err) => {
       console.log("Websocket connection error on the user. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
       console.log(err);
+      return new Promise((resolve, reject) => {
+        reject(err);
+      });
     });
 
     if (!this.mixnetWebsocketConnection) {
-      console.error("Oh no! Could not create client");
-      return;
+      const err = "Oh no! Could not create client";
+      console.error(err);
+      return new Promise((resolve, reject) => {
+        reject(err);
+      });
     }
 
     this.onOpen(this.mixnetWebsocketConnection);
 
-    return;
   }
 
   private onOpen(mixnetWebsocketConnection: WebSocket) {
@@ -178,12 +184,12 @@ export class NymWsConnection implements IJsonRpcConnection {
   private onPayload(e) {
     try {
       const response = JSON.parse(e.data);
-      if (response.type == "error") {
-        console.log("Server responded with error: ");
+      if (response.type == "error" || response.message.startsWith("\"Error") || response.message.startsWith("Error")) {
+        console.log("SP responded with error: ");
         this.onError(0, response.message); // TODO id?
       } else if (response.type == "selfAddress") {
         this.ourAddress = response.address;
-        console.log("Our address is:  " + this.ourAddress + ", we will now send messages to ourself.");
+        console.log("Our address is:  " + this.ourAddress);
       } else if (response.type == "received") {
         const payload: string = response.message;
         if (payload == "closed") {
@@ -229,7 +235,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   // Function that connects our application to the mixnet Websocket. We want to call this first in our main function.
-  private connectWebsocket(url: string) {
+  private connectWebsocket(url: string): Promise<void> {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);
       console.log("user connecting to Mixnet Websocket (Nym Client)...");

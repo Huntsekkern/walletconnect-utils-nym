@@ -4,7 +4,6 @@ import BiMap from "bidirectional-map";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
   formatJsonRpcError,
-  IJsonRpcConnection, parseConnectionError,
   JsonRpcPayload,
   isReactNative,
   isWsUrl,
@@ -56,13 +55,13 @@ export class NymWsServiceProvider {
         console.log("\x1b[91mAn error occured: " + message.message + "\x1b[0m");
       } else if (message.type == "selfAddress") {
         this.ourAddress = message.address;
-        console.log("\x1b[94mOur address is: " + this.ourAddress + "\x1b[0m");
+        console.log("\x1b[94mSP address is: " + this.ourAddress + "\x1b[0m");
       } else if (message.type == "received") {
         // Those are the messages received from the mixnet, i.e., from the wallets and dapps.
         await this.handleReceivedMixnetMessage(message);
       }
-    } catch (_) {
-      console.log("something went wrong in handleResponse");
+    } catch (err) {
+      console.log("something went wrong in handleResponse: " + err);
     }
   }
 
@@ -72,11 +71,11 @@ export class NymWsServiceProvider {
     // TODO not sure about the layers of JSON here, doc unclear, will have to try and look at what come through.
     const senderTag = response.senderTag;
 
-    if (response.message.startsWith("open")) {
+    if (response.message.startsWith("\"open")) {
       // extract the url from the payload which pattern should be open:url
-      const url = response.message.substring(5);
+      const url = response.message.substring(6);
       await this.openWS(url, senderTag);
-    } else if (response.message == "close") {
+    } else if (response.message == "\"close\"") {
       await this.closeWS(senderTag);
     } else { // Then the message is a JSONRPC to be passed to the relay server
       const messageContent = JSON.parse(response.message);
@@ -104,14 +103,15 @@ export class NymWsServiceProvider {
   public async openWS(url: string, senderTag: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!isWsUrl(url)) {
-        // error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
-        this.sendMessageToMixnet("error: the url given is not a valid WS url", senderTag);
+        // TODO error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
+        this.sendMessageToMixnet("Error: the url given is not a valid WS url", senderTag);
         reject(new Error("the url given is not a valid WS url"));
       }
       const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
       const socket: WebSocket = new WebSocket(url, [], opts);
       (socket as any).on("error", (errorEvent: any) => {
-        console.log(errorEvent);
+        console.log(errorEvent.toString());
+        this.sendMessageToMixnet(errorEvent.toString(), senderTag);
         reject(errorEvent);
       });
       socket.onopen = () => {
