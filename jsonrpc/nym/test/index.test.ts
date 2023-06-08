@@ -242,12 +242,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     it("initialises with a `ws:` string", async () => {
       const conn = new NymWsConnection(await formatRelayUrl());
       chai.expect(conn instanceof NymWsConnection).to.be.true;
-      conn.terminateClient();
     });
     it("initialises with a `wss:` string", async () => {
       const conn = new NymWsConnection(await formatRelayUrl());
       chai.expect(conn instanceof NymWsConnection).to.be.true;
-      conn.terminateClient();
     });
   });
 
@@ -258,10 +256,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(await formatRelayUrl());
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn).to.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.be.empty;
       await conn.open();
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.not.be.empty;
       conn.terminateClient();
       SP.terminateServiceProvider();
     });
@@ -301,13 +299,13 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       let expectedError: Error | undefined;
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn).to.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.be.empty;
       await conn.open();
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.not.be.empty;
       await conn.close();
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn).to.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.be.empty;
 
       conn.terminateClient();
       SP.terminateServiceProvider();
@@ -320,13 +318,13 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       let expectedError: Error | undefined;
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn).to.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.be.empty;
       await conn.open();
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.keys).to.not.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.not.be.empty;
       await conn.close();
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn).to.be.empty;
+      chai.expect(SP.tagToWSConn.keys()).to.be.empty;
 
       try {
         await conn.close();

@@ -232,7 +232,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   private connectWebsocket(url: string) {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);
-      console.log("connecting to Mixnet Websocket (Nym Client)...");
+      console.log("user connecting to Mixnet Websocket (Nym Client)...");
       server.onopen = function () {
         resolve(server);
       };
