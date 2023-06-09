@@ -352,18 +352,17 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
 
-      // TODO same as above, I cannot properly check for forwarded errors from the SP currently. They only get printed.
-      // try {
+      try {
         await conn.close();
-      // } catch (error) {
-      //   expectedError = error;
-      // }
+      } catch (error) {
+        expectedError = error;
+      }
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
 
-/*      chai.expect(expectedError instanceof Error).to.be.true;
-      chai.expect((expectedError as Error).message).to.equal("Connection already closed");*/
+      chai.expect(expectedError instanceof Error).to.be.true;
+      chai.expect((expectedError as Error).message).to.equal("Connection already closed");
 
       conn.terminateClient();
       SP.terminateServiceProvider();
