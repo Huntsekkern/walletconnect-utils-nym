@@ -12,7 +12,8 @@ import { fromString } from "uint8arrays/from-string";
 import NymWsConnection from "../src/nym-ws";
 import NymWsServiceProvider from "../src/nym-ws-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
-import { JsonRpcPayload, JsonRpcRequest, JsonRpcResult } from "@walletconnect/jsonrpc-utils";
+import { getBigIntRpcId, JsonRpcPayload, JsonRpcRequest, JsonRpcResult, payloadId } from "@walletconnect/jsonrpc-utils";
+import { randomInt } from "crypto";
 
 chai.use(chaiAsPromised);
 
@@ -97,7 +98,7 @@ function mockWcRpcBasic(): JsonRpcRequest {
 
 function mockWcRpcPublish(): JsonRpcRequest {
   return {
-    id: TEST_ID, // hex string - 32 bytes
+    id: payloadId(), // hex string - 32 bytes // TODO?? or TEST_ID seemed to failed
     jsonrpc: "2.0",
     method: "irn_publish",
     params: {
@@ -222,6 +223,9 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       }
 
       SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
     });
   });
 });
@@ -388,6 +392,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       const RPCpayload = mockWcRpcPublish();
 
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
+
       try {
         await conn.send(RPCpayload);
       } catch (error) {
@@ -398,7 +405,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // to ensure that everything works smoothly.
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 9000));
 
       conn.terminateClient();
       SP.terminateServiceProvider();

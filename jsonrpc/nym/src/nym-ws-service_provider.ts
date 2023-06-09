@@ -50,7 +50,7 @@ export class NymWsServiceProvider {
   // Handle any messages that come back down the mixnet-facing client websocket.
   private async handleResponse(responseMessageEvent: MessageEvent) {
     try {
-      const message = JSON.parse(responseMessageEvent.data.toString());
+      const message = safeJsonParse(responseMessageEvent.data.toString());
       if (message.type == "error") {
         console.log("\x1b[91mAn error occured: " + message.message + "\x1b[0m");
       } else if (message.type == "selfAddress") {
@@ -58,6 +58,7 @@ export class NymWsServiceProvider {
         console.log("\x1b[94mSP address is: " + this.ourAddress + "\x1b[0m");
       } else if (message.type == "received") {
         // Those are the messages received from the mixnet, i.e., from the wallets and dapps.
+        console.log("Received from a client: " + message.message);
         await this.handleReceivedMixnetMessage(message);
       }
     } catch (err) {
@@ -68,35 +69,23 @@ export class NymWsServiceProvider {
   // handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
 // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
   private async handleReceivedMixnetMessage(response: any) {
-    // TODO not sure about the layers of JSON here, doc unclear, will have to try and look at what come through.
     const senderTag = response.senderTag;
+    const message = response.message;
 
-    if (response.message.startsWith("\"open")) {
+    if (message.startsWith("open")) {
       // extract the url from the payload which pattern should be open:url
-      const url = response.message.substring(6);
+      const url = message.substring(5);
       await this.openWS(url, senderTag);
-    } else if (response.message == "\"close\"") {
+    } else if (message == "close") {
       await this.closeWS(senderTag);
     } else { // Then the message is a JSONRPC to be passed to the relay server
-      const messageContent = JSON.parse(response.message);
-      //let payload = response.payload;
-      const payload = messageContent.payload;
-      if (isJsonRpcPayload(payload)) {
-        await this.forwardRPC(senderTag, payload);
+      const messageInJson = safeJsonParse(message);
+      if (isJsonRpcPayload(messageInJson)) {
+        await this.forwardRPC(senderTag, messageInJson);
       } else {
-        console.log("payload is not jsonrpc: " + payload);
+        console.log("payload is not jsonrpc: " + messageInJson);
       }
     }
-
-
-    /*console.log('\x1b[93mReceived : \x1b[0m');
-    console.log('\x1b[92mName : ' + messageContent.name + '\x1b[0m');
-    console.log('\x1b[92mService : ' + messageContent.service + '\x1b[0m');
-    console.log('\x1b[92mComment : ' + messageContent.comment + '\x1b[0m');
-
-    console.log('\x1b[93mSending response back to client... \x1b[0m')
-
-    sendMessageToMixnet('nothing relevant', response.senderTag);*/
   }
 
 // openWS opens a new WebSocket connection to a specified url for a given senderTag.
@@ -110,7 +99,7 @@ export class NymWsServiceProvider {
       const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
       const socket: WebSocket = new WebSocket(url, [], opts);
       (socket as any).on("error", (errorEvent: any) => {
-        console.log(errorEvent.toString());
+        console.log("Couldn't open a WS to relay: " + errorEvent.toString());
         this.sendMessageToMixnet(errorEvent.toString(), senderTag);
         reject(errorEvent);
       });
@@ -154,7 +143,7 @@ export class NymWsServiceProvider {
       try {
         socket.send(safeJsonStringify(payload));
       } catch (e) {
-        console.log(e);
+        console.log("Couldn't forward RPC with err: " + e);
         this.onError(payload.id, e as Error, senderTag);
         reject(e);
       }
@@ -172,7 +161,6 @@ export class NymWsServiceProvider {
 // onClose is called when a mixnet user request to closes its WS connection
 // OR when the relay-server sends a close message to the WS.
   private onClose(event: CloseEvent, socket: WebSocket, senderTag: string) {
-    //console.log(event);
     console.log("Closing the Relay WS connection for " + senderTag);
     this.sendMessageToMixnet("closed", senderTag);
     this.tagToWSConn.delete(senderTag);
@@ -183,6 +171,7 @@ export class NymWsServiceProvider {
   private onPayload(senderTag: string, e: { data: any }) {
     if (typeof e.data === "undefined") return;
     const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+    console.log("Payload from relay: " + e.data);
     this.sendMessageToMixnet(safeJsonStringify(payload), senderTag);
   }
 
@@ -196,20 +185,13 @@ export class NymWsServiceProvider {
 // sendMessageToMixnet sends a message to a mixnet user (wallet/dapp) identified by its sender_tag
 // it relies on a Nym send function, which should be explored better to ensure correct usage.
   private sendMessageToMixnet(messageContent: string, senderTag: string) {
-
-    // Place each of the form values into a single object to be sent.
-    /*const messageContentToSend = {
-      text: messageContent,
-      fromAddress : ourAddress
-    }*/
-
     const message = {
       type: "reply",
       //message: JSON.stringify(messageContentToSend),
       message: messageContent,
       senderTag: senderTag,
     };
-    // as I'm using the senderTag, are the matching SURBs automatically retrieved => yes, this also removes all need to keep track of the SURBs!
+    // as I'm using the senderTag, the matching SURBs automatically retrieved, this also removes all need to keep track of the SURBs!
 
     // Send our message object out via our websocket connection.
     this.mixnetWebsocketConnection.send(JSON.stringify(message));
@@ -220,7 +202,7 @@ export class NymWsServiceProvider {
     const selfAddress = {
       type: "selfAddress",
     };
-    this.mixnetWebsocketConnection.send(JSON.stringify(selfAddress));
+    this.mixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
   }
 
 // Function that connects our application to the mixnet Websocket. We want to call this first in our main function.

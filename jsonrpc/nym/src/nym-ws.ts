@@ -118,13 +118,13 @@ export class NymWsConnection implements IJsonRpcConnection {
 
     const message = {
       type: "sendAnonymous",
-      message: JSON.stringify(payload),
+      message: safeJsonStringify(payload),
       recipient: recipient,
       replySurbs: SURBsGiven,
     };
 
     // Send our message object out via our websocket connection.
-    this.mixnetWebsocketConnection.send(JSON.stringify(message));
+    this.mixnetWebsocketConnection.send(safeJsonStringify(message));
   }
 
 
@@ -184,24 +184,31 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   private onPayload(e) {
     try {
-      const response = JSON.parse(e.data);
-      if (response.type == "error" || response.message.startsWith("\"Error") || response.message.startsWith("Error")) {
-        console.log("SP responded with error: ");
-        this.onError(0, response.message); // TODO id?
-      } else if (response.type == "selfAddress") {
-        this.ourAddress = response.address;
-        console.log("Our address is:  " + this.ourAddress);
-      } else if (response.type == "received") {
-        const payload: string = response.message;
-        if (payload == "closed") {
-          this.onClose();
-        } else {
-          // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
-          this.events.emit("payload", payload);
+      console.log("Received from mixnet: " + e.data);
+      if (e.data == "closed") {
+        console.log("WS connection between SP and relay is closed");
+        this.onClose();
+      } else {
+        const response = safeJsonParse(e.data);
+        if (response.type == "error") {
+          console.log("mixnet responded with error: ");
+          this.onError(0, response.message); // TODO id?
+        } else if (response.type == "selfAddress") {
+          this.ourAddress = response.address;
+          console.log("Our address is:  " + this.ourAddress);
+        } else if (response.type == "received") {
+          const payload: string = response.message;
+          if (payload.startsWith("Error")) {
+            console.log("SP responded with error: " + payload); // TODO this.onError?
+          } else {
+            // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
+            console.log("Client received: " + payload);
+            this.events.emit("payload", payload);
+          }
         }
       }
-    } catch (_) {
-      console.log(e.data);
+    } catch (err) {
+      console.log("client onPayload error: " + err + " , happened withPayload: " + e.data);
     }
 
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
@@ -232,7 +239,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     const selfAddress = {
       type: "selfAddress",
     };
-    this.mixnetWebsocketConnection.send(JSON.stringify(selfAddress));
+    this.mixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
   }
 
   // Function that connects our application to the mixnet Websocket. We want to call this first in our main function.
@@ -252,7 +259,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   public terminateClient() {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
-      console.log("client not running already");
+      console.log("terminateClient not executed: client not running already");
     } else {
       this.onClose();
     }
