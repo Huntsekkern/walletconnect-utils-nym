@@ -268,6 +268,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       conn.terminateClient();
       SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
     });
     it("rejects with an error if `wss:` URL is valid but connection cannot be made", async () => {
       const auth = await signJWT(RELAY_URL);
@@ -296,6 +299,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       conn.terminateClient();
       SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
     });
 
   });
@@ -325,8 +331,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       chai.expect(SP.tagToWSConn.size).to.equal(0);
 
 
-      conn.terminateClient();
       SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
     });
 
     it("can not double close a connection, with correct error message", async () => {
@@ -364,8 +372,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       chai.expect(expectedError instanceof Error).to.be.true;
       chai.expect((expectedError as Error).message).to.equal("Connection already closed");
 
-      conn.terminateClient();
       SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
     });
   });
 
@@ -392,6 +402,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       conn.terminateClient();
       SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
     });
   });
 });

@@ -176,6 +176,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   private onClose() {
+    this.mixnetWebsocketConnection.close();
     this.mixnetWebsocketConnection = undefined;
     this.registering = false;
     this.events.emit("close");
@@ -253,7 +254,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
       console.log("client not running already");
     } else {
-      this.mixnetWebsocketConnection.close();
+      this.onClose();
     }
   }
 
