@@ -90,9 +90,11 @@ export class NymWsConnection implements IJsonRpcConnection {
         e => console.log("failed to send the request to close a WSConn: " || e)
       );
 
-      // TODO By doing it like that, I'm not waiting for the SP confirming the closure.
-      // Could consider playing with events and the onPayload handler to properly wait.
-      this.onClose();
+      // By doing it like that, I'm not waiting for the SP confirming the closure.
+      // Instead, I now properly wait for the SP answer to close the socket.
+      // This comes with advantage and disadvantages I guess? Make sure that incoming messages are waited for.
+      // But also might fail to close if the reply is lost.
+      //this.onClose();
       resolve();
     });
   }
@@ -185,26 +187,24 @@ export class NymWsConnection implements IJsonRpcConnection {
   private onPayload(e) {
     try {
       console.log("Received from mixnet: " + e.data);
-      if (e.data == "closed") {
-        console.log("WS connection between SP and relay is closed");
-        this.onClose();
-      } else {
-        const response = safeJsonParse(e.data);
-        if (response.type == "error") {
-          console.log("mixnet responded with error: ");
-          this.onError(0, response.message); // TODO id?
-        } else if (response.type == "selfAddress") {
-          this.ourAddress = response.address;
-          console.log("Our address is:  " + this.ourAddress);
-        } else if (response.type == "received") {
-          const payload: string = response.message;
-          if (payload.startsWith("Error")) {
-            console.log("SP responded with error: " + payload); // TODO this.onError?
-          } else {
-            // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
-            console.log("Client received: " + payload);
-            this.events.emit("payload", payload);
-          }
+      const response = safeJsonParse(e.data);
+      if (response.type == "error") {
+        console.log("mixnet responded with error: ");
+        this.onError(0, response.message); // TODO id?
+      } else if (response.type == "selfAddress") {
+        this.ourAddress = response.address;
+        console.log("Our address is:  " + this.ourAddress);
+      } else if (response.type == "received") {
+        const payload: string = response.message;
+        if (payload == "closed") {
+          console.log("WS connection between SP and relay is closed");
+          this.onClose();
+        } else if (payload.startsWith("Error")) {
+          console.log("SP responded with error: " + payload); // TODO this.onError?
+        } else {
+          // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
+          console.log("Client received: " + payload);
+          this.events.emit("payload", payload);
         }
       }
     } catch (err) {
