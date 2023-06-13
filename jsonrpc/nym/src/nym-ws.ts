@@ -191,12 +191,13 @@ export class NymWsConnection implements IJsonRpcConnection {
       const response = safeJsonParse(e.data);
       if (response.type == "error") {
         console.log("mixnet responded with error: ");
-        this.onReceivedError(0, response.message); // TODO id?
+        this.onReceivedError(0, response.message); // TODO id?, and overall I expect it to bug out.
       } else if (response.type == "selfAddress") {
         this.ourAddress = response.address;
         console.log("Our address is:  " + this.ourAddress);
       } else if (response.type == "received") {
         const payload: string = response.message;
+        const parsedPayload = safeJsonParse(payload);
         if (payload === "closed") {
           console.log("WS connection between SP and relay is closed");
           this.onClose();
@@ -204,9 +205,9 @@ export class NymWsConnection implements IJsonRpcConnection {
           console.log("WS connection between SP and relay is opened");
           this.connectedToRelay = true; // TODO more implication of it, use it when sending??
           this.events.emit("payload", payload);
-        } else if (safeJsonParse(payload).hasOwnProperty("error")) {
+        } else if (parsedPayload.hasOwnProperty("error")) {
           console.log("SP responded with error: ");
-          this.onReceivedError(response.message.id, payload);
+          this.onReceivedError(parsedPayload.id, parsedPayload.error);
         } else {
           // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
           console.log("Client received: " + payload);
@@ -228,10 +229,9 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.events.emit("payload", payload);
   }
 
-  private onReceivedError(id: number, e: string) {
-    const error = safeJsonParse(e);
-    console.log(error);
-    const message = error.message;
+  private onReceivedError(id: number, e: Error) {
+    console.log(e);
+    const message = e.message;
     const payload = formatJsonRpcError(id, message);
     this.events.emit("payload", payload);
   }

@@ -12,7 +12,14 @@ import { fromString } from "uint8arrays/from-string";
 import NymWsConnection from "../src/nym-ws";
 import NymWsServiceProvider from "../src/nym-ws-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
-import { getBigIntRpcId, JsonRpcPayload, JsonRpcRequest, JsonRpcResult, payloadId } from "@walletconnect/jsonrpc-utils";
+import {
+  getBigIntRpcId,
+  JsonRpcError,
+  JsonRpcPayload,
+  JsonRpcRequest,
+  JsonRpcResult,
+  payloadId,
+} from "@walletconnect/jsonrpc-utils";
 import { randomInt } from "crypto";
 
 chai.use(chaiAsPromised);
@@ -217,7 +224,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
 
       const socket: WebSocket = SP.tagToWSConn.get(senderTag);
       socket.onmessage = (e: MessageEvent) => {
-        chai.expect(typeof e.data !== "undefined").to.be.true;
+        chai.expect(e.data).to.not.be.a("undefined");
         const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
         console.log(payload);
         // console.log(TEST_JSONRPC_RESULT);
@@ -267,7 +274,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(await formatRelayUrl());
 
       conn.on("payload",(payload: string) => {
-        chai.expect(typeof payload !== "undefined").to.be.true;
+        chai.expect(payload).to.not.be.a("undefined");
         chai.expect(payload).to.equal("opened");
       });
 
@@ -301,19 +308,15 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
       let expectedError: Error | undefined;
 
-      conn.on("payload",(payload: string) => {
-        chai.expect(typeof payload !== "undefined").to.be.true;
-        //chai.expect(payload).to.equal("Error: Couldn't open a WS to relay: Error: Unexpected server response: 400"); // TODO
+      conn.on("payload",(payload: JsonRpcError) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload.error.message).to.equal("Error: Couldn't open a WS to relay: Error: Unexpected server response: 400");
       });
 
       await conn.open();
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
-
-/*      console.log(expectedError);
-      chai.expect(expectedError instanceof Error).to.be.true;
-      chai.expect((expectedError as Error).message).to.equal("Unexpected server response: 400");*/
 
       conn.terminateClient();
       SP.terminateServiceProvider();
@@ -329,7 +332,11 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
-      let expectedError: Error | undefined;
+
+      conn.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload).to.equal("opened");
+      });
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
@@ -337,6 +344,11 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
+
+      conn.once("close",() => {
+        console.log("Test passing");
+        chai.assert(true);
+      });
 
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
@@ -361,12 +373,21 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(await formatRelayUrl());
       let expectedError: Error | undefined;
 
+      conn.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload).to.equal("opened");
+      });
+
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
       await conn.open();
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
+
+      conn.once("close",() => {
+        chai.assert(true);
+      });
 
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
@@ -402,12 +423,26 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
+
+      conn.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload).to.equal("opened");
+      });
+
       await conn.open();
 
       const RPCpayload = mockWcRpcPublish();
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
+
+      conn.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        const parsedPayload = safeJsonParse(payload);
+        chai.expect(parsedPayload.id).to.equal(RPCpayload.id);
+        chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
+        chai.expect(parsedPayload.result).to.equal(true);
+      });
 
       try {
         await conn.send(RPCpayload);
@@ -419,7 +454,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // to ensure that everything works smoothly.
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 6000));
+      await new Promise(r => setTimeout(r, 3000));
 
       conn.terminateClient();
       SP.terminateServiceProvider();
