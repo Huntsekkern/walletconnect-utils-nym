@@ -77,6 +77,8 @@ export class NymWsConnection implements IJsonRpcConnection {
     await this.register(url);
   }
 
+  // close tells the SP to close the connection to the relay server.
+  // The user then expects the confirmation from the SP to fully disconnect from the local Nym client
   public async close(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (typeof this.mixnetWebsocketConnection === "undefined") {
@@ -130,6 +132,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
 
+  // register connects to the local Nym client, then calls onOpen
   private async register(url: string = this.url): Promise<void> {
     this.url = url;
     this.registering = true;
@@ -158,6 +161,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   }
 
+  // onOpen asks the SP to open a connection to the relay
   private onOpen(mixnetWebsocketConnection: WebSocket) {
     this.mixnetWebsocketConnection.onmessage = (e: any) => {
       //console.log('Got a message: ', e.args.payload);
@@ -177,6 +181,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.events.emit("open");
   }
 
+  // onClose kills the connection to the local Nym Client
   private onClose() {
     this.mixnetWebsocketConnection.close();
     this.mixnetWebsocketConnection = undefined;
@@ -200,7 +205,8 @@ export class NymWsConnection implements IJsonRpcConnection {
           console.log("WS connection between SP and relay is closed");
           this.onClose();
         } else if (payload.startsWith("Error")) {
-          console.log("SP responded with error: " + payload); // TODO this.onError?
+          console.log("SP responded with error: " + payload);
+          this.onError(0, response.message); // TODO id?
         } else {
           // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
           console.log("Client received: " + payload);
@@ -208,7 +214,7 @@ export class NymWsConnection implements IJsonRpcConnection {
         }
       }
     } catch (err) {
-      console.log("client onPayload error: " + err + " , happened withPayload: " + e.data);
+      console.log("client onPayload error: " + err + " , happened withPayload: " + e.data); // TODO this.onError?
     }
 
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.

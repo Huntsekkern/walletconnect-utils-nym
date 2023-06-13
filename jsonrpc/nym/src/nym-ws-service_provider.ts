@@ -100,6 +100,7 @@ export class NymWsServiceProvider {
       const socket: WebSocket = new WebSocket(url, [], opts);
       (socket as any).on("error", (errorEvent: any) => {
         console.log("Couldn't open a WS to relay: " + errorEvent.toString());
+        //this.onError(0, errorEvent, senderTag);
         this.sendMessageToMixnet(errorEvent.toString(), senderTag);
         reject(errorEvent);
       });
@@ -116,6 +117,9 @@ export class NymWsServiceProvider {
     return new Promise<void>((resolve, reject) => {
       const socket: WebSocket = this.tagToWSConn.get(senderTag);
       if (typeof socket === "undefined") {
+        // Tell the user that the connection is closed to allow it to shutdown.
+        // In fact the connection was already closed, but the user do not need the distinction.
+        this.sendMessageToMixnet("closed", senderTag);
         reject(new Error("Connection already closed"));
         return;
       }
