@@ -11,8 +11,6 @@ import {
 } from "@walletconnect/jsonrpc-utils";
 
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
-import crypto from "crypto";
-
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 
@@ -35,10 +33,6 @@ export class NymWsConnection implements IJsonRpcConnection {
   private localClientUrl = "ws://127.0.0.1:" + this.port;
   private mixnetWebsocketConnection: WebSocket | any;
   private ourAddress: string | undefined;
-
-  // senderTag is handled automatically by the Rust client, I hope it also works like that in TS.
-  // private senderTag = crypto.randomBytes(32).toString("hex");
-  //private senderTag = crypto.randomBytes(32).toString("base64");
 
   constructor(public url: string) {
     // TODO: add the nym SP addr? can be hardcoded
@@ -87,16 +81,15 @@ export class NymWsConnection implements IJsonRpcConnection {
       }
 
       // This must match my mini-protocol as a close order for the SP.
-
       this.nymSend("close").catch(
         e => console.log("failed to send the request to close a WSConn: " || e)
       );
 
-      // By doing it like that, I'm not waiting for the SP confirming the closure.
+      // By calling this.onClose() right here, I would not be waiting for the SP confirming the closure.
       // Instead, I now properly wait for the SP answer to close the socket.
       // This comes with advantage and disadvantages I guess? Make sure that incoming messages are waited for.
       // But also might fail to close if the reply is lost.
-      //this.onClose();
+
       resolve();
     });
   }
@@ -105,7 +98,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     try  {
       await this.nymSend(safeJsonStringify(payload));
     } catch (e) {
-      this.onError(payload.id, e as Error);
+      this.onSendError(payload.id, e as Error);
     }
   }
 
@@ -158,7 +151,6 @@ export class NymWsConnection implements IJsonRpcConnection {
     }
 
     this.onOpen(this.mixnetWebsocketConnection);
-
   }
 
   // onOpen asks the SP to open a connection to the relay
@@ -195,7 +187,7 @@ export class NymWsConnection implements IJsonRpcConnection {
       const response = safeJsonParse(e.data);
       if (response.type == "error") {
         console.log("mixnet responded with error: ");
-        this.onError(0, response.message); // TODO id?
+        this.onReceivedError(0, response.message); // TODO id?
       } else if (response.type == "selfAddress") {
         this.ourAddress = response.address;
         console.log("Our address is:  " + this.ourAddress);
@@ -204,9 +196,9 @@ export class NymWsConnection implements IJsonRpcConnection {
         if (payload == "closed") {
           console.log("WS connection between SP and relay is closed");
           this.onClose();
-        } else if (payload.startsWith("Error")) {
-          console.log("SP responded with error: " + payload);
-          this.onError(0, response.message); // TODO id?
+        } else if (safeJsonParse(payload).hasOwnProperty("error")) {
+          console.log("SP responded with error: ");
+          this.onReceivedError(response.message.id, payload);
         } else {
           // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
           console.log("Client received: " + payload);
@@ -220,9 +212,17 @@ export class NymWsConnection implements IJsonRpcConnection {
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
   }
 
-  private onError(id: number, e: Error) {
+  private onSendError(id: number, e: Error) {
     const error = this.parseError(e);
     const message = error.message || error.toString();
+    const payload = formatJsonRpcError(id, message);
+    this.events.emit("payload", payload);
+  }
+
+  private onReceivedError(id: number, e: string) {
+    const error = safeJsonParse(e);
+    console.log(error);
+    const message = error.message;
     const payload = formatJsonRpcError(id, message);
     this.events.emit("payload", payload);
   }
@@ -270,7 +270,6 @@ export class NymWsConnection implements IJsonRpcConnection {
       this.onClose();
     }
   }
-
 }
 
 export default NymWsConnection;

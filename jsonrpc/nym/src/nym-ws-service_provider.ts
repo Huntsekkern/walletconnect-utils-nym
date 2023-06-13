@@ -67,7 +67,7 @@ export class NymWsServiceProvider {
   }
 
   // handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
-// The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
+  // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
   private async handleReceivedMixnetMessage(response: any) {
     const senderTag = response.senderTag;
     const message = response.message;
@@ -93,15 +93,17 @@ export class NymWsServiceProvider {
     return new Promise<void>((resolve, reject) => {
       if (!isWsUrl(url)) {
         // TODO error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
-        this.sendMessageToMixnet("Error: the url given is not a valid WS url", senderTag);
-        reject(new Error("the url given is not a valid WS url"));
+        const err = new Error("The url given is not a valid WS url");
+        this.onError(0, err, senderTag);
+        reject(err);
       }
       const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
       const socket: WebSocket = new WebSocket(url, [], opts);
       (socket as any).on("error", (errorEvent: any) => {
-        console.log("Couldn't open a WS to relay: " + errorEvent.toString());
-        //this.onError(0, errorEvent, senderTag);
-        this.sendMessageToMixnet(errorEvent.toString(), senderTag);
+        const err = new Error("Couldn't open a WS to relay: " + errorEvent.toString());
+        this.onError(0, err, senderTag);
+        // This rejects the error event from the WS instead of the self-build error in order to pass my tests.
+        // No big change, except in what is logged by the SP.
         reject(errorEvent);
       });
       socket.onopen = () => {
@@ -147,8 +149,8 @@ export class NymWsServiceProvider {
       try {
         socket.send(safeJsonStringify(payload));
       } catch (e) {
-        console.log("Couldn't forward RPC with err: " + e);
-        this.onError(payload.id, e as Error, senderTag);
+        const err = new Error("Couldn't forward RPC with err: " + e);
+        this.onError(payload.id, err as Error, senderTag);
         reject(e);
       }
 
@@ -180,8 +182,7 @@ export class NymWsServiceProvider {
   }
 
   private onError(id: number, error: Error, senderTag: string) {
-    //const error = parseError(e);
-    const message = error.message || error.toString();
+    const message: string = error.toString();
     const payload = formatJsonRpcError(id, message);
     this.sendMessageToMixnet(safeJsonStringify(payload), senderTag);
   }
@@ -191,13 +192,14 @@ export class NymWsServiceProvider {
   private sendMessageToMixnet(messageContent: string, senderTag: string) {
     const message = {
       type: "reply",
-      //message: JSON.stringify(messageContentToSend),
+      //message: safeJsonStringify(messageContentToSend),
       message: messageContent,
       senderTag: senderTag,
     };
     // as I'm using the senderTag, the matching SURBs automatically retrieved, this also removes all need to keep track of the SURBs!
 
     // Send our message object out via our websocket connection.
+    // TODO might want to try to switch to safeJsonStringify, but it causes issues... I think when sending back errors?
     this.mixnetWebsocketConnection.send(JSON.stringify(message));
   }
 
