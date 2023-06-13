@@ -46,6 +46,14 @@ by starting and learning its mixnet address on start-up. So it's not that weird 
 Both of those batch of tests are done in this file because of JS/TS resolution issue.
  */
 
+// the actual issue was not the file name, but something happening in the second file, since now that they're merged here, I have the same error
+// => Compare what I'm calling in one vs the other, the dependencies (import NymWsConnection from "../src/nym-ws"; should come from there???)
+// And the difference in nym-ws is that it does import { createNymMixnetClient, NymMixnetClient, Payload, StringMessageReceivedEvent } from "@nymproject/sdk";
+// More tests confirmed that it does come from import Nym SDK. => after much unsuccessful debugging, I decided to switch to using the Nym Client through WebSockets.
+
+
+// the Nym client of the SP I'm spinning in the tests must match the SP Nym Address given as default in nym-ws
+
 function generateRandomBytes32(): string {
   const random = randomBytes(32);
   return toString(random, BASE16);
@@ -212,8 +220,11 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         chai.expect(typeof e.data !== "undefined").to.be.true;
         const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
         console.log(payload);
-        console.log(TEST_JSONRPC_RESULT);
-        chai.expect(JSON.stringify(payload).valueOf() === JSON.stringify(TEST_JSONRPC_RESULT).valueOf()); // Lovely javascript.
+        // console.log(TEST_JSONRPC_RESULT);
+        //chai.expect(JSON.stringify(payload).valueOf() === JSON.stringify(TEST_JSONRPC_RESULT).valueOf()); // Lovely javascript.
+        chai.expect(payload.id === RPCpayload.id).to.be.true;
+        chai.expect(payload.jsonrpc === "2.0").to.be.true;
+        chai.expect(payload.result === true).to.be.true;
       };
 
       try {
@@ -230,12 +241,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   });
 });
 
-// TODO fix that the SP I'm spinning in the tests match the SP Nym Address given as default in nym-ws
 
-// the actual issue was not the file name, but something happening in the second file, since now that they're merged here, I have the same error
-// => Compare what I'm calling in one vs the other, the dependencies (import NymWsConnection from "../src/nym-ws"; should come from there???)
-// And the difference in nym-ws is that it does import { createNymMixnetClient, NymMixnetClient, Payload, StringMessageReceivedEvent } from "@nymproject/sdk";
-// More tests confirmed that it does come from import Nym SDK. => after many unsuccessful debugging, I decided to switch to using the Nym Client through WebSockets.
 
 describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
   describe("init", () => {
@@ -259,6 +265,11 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
+
+      conn.on("payload",(payload: string) => {
+        chai.expect(typeof payload !== "undefined").to.be.true;
+        chai.expect(payload === "opened");
+      });
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
@@ -405,7 +416,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // to ensure that everything works smoothly.
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 9000));
+      await new Promise(r => setTimeout(r, 6000));
 
       conn.terminateClient();
       SP.terminateServiceProvider();

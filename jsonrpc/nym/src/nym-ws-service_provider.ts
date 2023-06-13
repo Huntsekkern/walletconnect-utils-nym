@@ -162,6 +162,7 @@ export class NymWsServiceProvider {
   private onOpen(socket: WebSocket, senderTag: string) {
     socket.onmessage = (event: MessageEvent) => this.onPayload(senderTag, event);
     socket.onclose = event => this.onClose(event, socket, senderTag);
+    this.sendMessageToMixnet("opened", senderTag);
   }
 
 // onClose is called when a mixnet user request to closes its WS connection

@@ -29,6 +29,8 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   private registering = false;
 
+  private connectedToRelay = false;
+
   private port = "1977";
   private localClientUrl = "ws://127.0.0.1:" + this.port;
   private mixnetWebsocketConnection: WebSocket | any;
@@ -43,6 +45,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
 
+  // TODO careful, connected is about the local Nym client, while connecting is up to the point the request to the SP to open is sent.
   get connected(): boolean {
     return typeof this.mixnetWebsocketConnection !== "undefined";
   }
@@ -178,6 +181,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.mixnetWebsocketConnection.close();
     this.mixnetWebsocketConnection = undefined;
     this.registering = false;
+    this.connectedToRelay = false;
     this.events.emit("close");
   }
 
@@ -193,9 +197,13 @@ export class NymWsConnection implements IJsonRpcConnection {
         console.log("Our address is:  " + this.ourAddress);
       } else if (response.type == "received") {
         const payload: string = response.message;
-        if (payload == "closed") {
+        if (payload === "closed") {
           console.log("WS connection between SP and relay is closed");
           this.onClose();
+        } else if (payload === "opened") {
+          console.log("WS connection between SP and relay is opened");
+          this.connectedToRelay = true; // TODO more implication of it, use it when sending??
+          this.events.emit("payload", payload);
         } else if (safeJsonParse(payload).hasOwnProperty("error")) {
           console.log("SP responded with error: ");
           this.onReceivedError(response.message.id, payload);
