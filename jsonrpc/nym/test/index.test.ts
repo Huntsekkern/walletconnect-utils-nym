@@ -221,10 +221,10 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
         console.log(payload);
         // console.log(TEST_JSONRPC_RESULT);
-        //chai.expect(JSON.stringify(payload).valueOf() === JSON.stringify(TEST_JSONRPC_RESULT).valueOf()); // Lovely javascript.
-        chai.expect(payload.id === RPCpayload.id).to.be.true;
-        chai.expect(payload.jsonrpc === "2.0").to.be.true;
-        chai.expect(payload.result === true).to.be.true;
+        //chai.expect(JSON.stringify(payload).valueOf() === JSON.stringify(TEST_JSONRPC_RESULT).valueOf()).to.be.true; // Lovely javascript.
+        chai.expect(payload.id).to.equal(RPCpayload.id);
+        chai.expect(payload.jsonrpc).to.equal("2.0");
+        chai.expect(payload.result).to.equal(true);
       };
 
       try {
@@ -268,7 +268,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       conn.on("payload",(payload: string) => {
         chai.expect(typeof payload !== "undefined").to.be.true;
-        chai.expect(payload === "opened");
+        chai.expect(payload).to.equal("opened");
       });
 
       chai.expect(conn.connected).to.be.false;
@@ -301,8 +301,11 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
       let expectedError: Error | undefined;
 
-      // TODO because of the current way I handle errors on the user from the SP, there's no proper error to check here..
-      // Instead one should verify that the proper error "Unexpected server response: 400" gets printed AFTER "SP responded with error:"
+      conn.on("payload",(payload: string) => {
+        chai.expect(typeof payload !== "undefined").to.be.true;
+        //chai.expect(payload).to.equal("Error: Couldn't open a WS to relay: Error: Unexpected server response: 400"); // TODO
+      });
+
       await conn.open();
 
       // eslint-disable-next-line promise/param-names

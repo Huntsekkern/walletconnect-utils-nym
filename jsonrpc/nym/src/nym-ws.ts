@@ -186,7 +186,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   private onPayload(e) {
-    try {
+    // try {
       console.log("Received from mixnet: " + e.data);
       const response = safeJsonParse(e.data);
       if (response.type == "error") {
@@ -213,9 +213,10 @@ export class NymWsConnection implements IJsonRpcConnection {
           this.events.emit("payload", payload);
         }
       }
-    } catch (err) {
+      // TODO I turn off the try/catch so that the tests properly fail. It seems weird to me that the catch in the code can catch an assertion error produced in the tests, but hey, if it's how it works...
+/*    } catch (err) {
       console.log("client onPayload error: " + err + " , happened withPayload: " + e.data); // TODO this.onError?
-    }
+    }*/
 
     // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
   }
