@@ -15,10 +15,11 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 
 const isBrowser = () => typeof window !== "undefined";
-
-// TODO can be harcoded for now, input in the future, from options all the way down from core.ts (in WC monorepo)
+// can be harcoded for now, input in the future, from options all the way down from core.ts (in WC monorepo)
+// Also this was only useful for the Nym SDK, not when running the Nym Client.
 const nymApiUrl = "https://validator.nymtech.net/api";
 const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
+
 // TODO, this is hardcoded from one particular instance of a Nym client
 const serviceProviderDefaultAddress = "2t8NNyj6zw5qHkNi1KwJxoQPcGVbZ9kq6PLhmnTDxzex.FHeSidBHTpTsNjmyg7XdvZbcMHP5bdchTybcAtRE8d4@5EpkkrMFYAM3XcaztXnZwBWquURHSKsyc9JxUCengDFS";
 
@@ -203,7 +204,7 @@ export class NymWsConnection implements IJsonRpcConnection {
           this.onClose();
         } else if (payload === "opened") {
           console.log("WS connection between SP and relay is opened");
-          this.connectedToRelay = true; // TODO more implication of it, use it when sending??
+          this.connectedToRelay = true; // TODO add more implication/usage of it, use it when sending??
           this.events.emit("payload", payload);
         } else if (parsedPayload.hasOwnProperty("error")) {
           console.log("SP responded with error: ");

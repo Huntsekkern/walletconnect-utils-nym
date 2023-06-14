@@ -227,8 +227,6 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
         chai.expect(e.data).to.not.be.a("undefined");
         const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
         console.log(payload);
-        // console.log(TEST_JSONRPC_RESULT);
-        //chai.expect(JSON.stringify(payload).valueOf() === JSON.stringify(TEST_JSONRPC_RESULT).valueOf()).to.be.true; // Lovely javascript.
         chai.expect(payload.id).to.equal(RPCpayload.id);
         chai.expect(payload.jsonrpc).to.equal("2.0");
         chai.expect(payload.result).to.equal(true);
@@ -450,8 +448,6 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
         chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
       }
 
-      // the console.logs should happen automatically for the answers, but it would be good to check them
-      // to ensure that everything works smoothly.
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
