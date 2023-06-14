@@ -47,6 +47,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
 
   // TODO careful, connected is about the local Nym client, while connecting is up to the point the request to the SP to open is sent.
+  // But I also need to respect the interface. Anyways, this should be when is fully connected, hiding the mixnet from the outside eye.
   get connected(): boolean {
     return typeof this.mixnetWebsocketConnection !== "undefined";
   }

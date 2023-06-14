@@ -32,7 +32,7 @@ export class NymWsServiceProvider {
   // Always call setup after new NymWsServiceProvider(); ! Necessary because the constructor cannot wait.
   public async setup() {
     // Set up and handle websocket connection to our desktop client.
-    this.mixnetWebsocketConnection = await this.connectWebsocket(this.localClientUrl).then(function (c) {
+    this.mixnetWebsocketConnection = await this.connectToMixnetWebsocket(this.localClientUrl).then(function (c) {
       return c;
     }).catch((err) => {
       console.log("Websocket connection error on the service-provider. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
@@ -40,7 +40,7 @@ export class NymWsServiceProvider {
     });
 
     this.mixnetWebsocketConnection.onmessage = (e: any) => {
-      this.handleResponse(e);
+      this.handleAllMixnetMessage(e);
     };
 
     this.sendSelfAddressRequest();
@@ -48,7 +48,7 @@ export class NymWsServiceProvider {
 
 
   // Handle any messages that come back down the mixnet-facing client websocket.
-  private async handleResponse(responseMessageEvent: MessageEvent) {
+  private async handleAllMixnetMessage(responseMessageEvent: MessageEvent) {
     try {
       const message = safeJsonParse(responseMessageEvent.data.toString());
       if (message.type == "error") {
@@ -62,7 +62,7 @@ export class NymWsServiceProvider {
         await this.handleReceivedMixnetMessage(message);
       }
     } catch (err) {
-      console.log("something went wrong in handleResponse: " + err);
+      console.log("something went wrong in handleAllMixnetMessage: " + err);
     }
   }
 
@@ -75,21 +75,21 @@ export class NymWsServiceProvider {
     if (message.startsWith("open")) {
       // extract the url from the payload which pattern should be open:url
       const url = message.substring(5);
-      await this.openWS(url, senderTag);
+      await this.openWStoRelay(url, senderTag);
     } else if (message == "close") {
-      await this.closeWS(senderTag);
+      await this.closeWStoRelay(senderTag);
     } else { // Then the message is a JSONRPC to be passed to the relay server
       const messageInJson = safeJsonParse(message);
       if (isJsonRpcPayload(messageInJson)) {
-        await this.forwardRPC(senderTag, messageInJson);
+        await this.forwardRPCtoRelay(senderTag, messageInJson);
       } else {
         console.log("payload is not jsonrpc: " + messageInJson);
       }
     }
   }
 
-// openWS opens a new WebSocket connection to a specified url for a given senderTag.
-  public async openWS(url: string, senderTag: string): Promise<void> {
+// openWStoRelay opens a new WebSocket connection to a specified url for a given senderTag.
+  public async openWStoRelay(url: string, senderTag: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!isWsUrl(url)) {
         // TODO error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
@@ -107,17 +107,17 @@ export class NymWsServiceProvider {
         reject(errorEvent);
       });
       socket.onopen = () => {
-        this.tagToWSConn.set(senderTag, socket);
         this.onOpen(socket, senderTag);
         resolve(socket);
       };
     });
   }
 
-// closeWS closes a WebSocket connection identified by the given senderTag.
-  public async closeWS(senderTag: string): Promise<void> {
+// closeWStoRelay closes a WebSocket connection identified by the given senderTag.
+  public async closeWStoRelay(senderTag: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const socket: WebSocket = this.tagToWSConn.get(senderTag);
+
       if (typeof socket === "undefined") {
         // Tell the user that the connection is closed to allow it to shutdown.
         // In fact the connection was already closed, but the user do not need the distinction.
@@ -136,13 +136,14 @@ export class NymWsServiceProvider {
   }
 
 
-// forwardRPC sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
-  public async forwardRPC(senderTag: string, payload: any): Promise<void> {
+// forwardRPCtoRelay sends the RPC payload of a mixnet-received packet through the matching WS connection with a relay-server
+  public async forwardRPCtoRelay(senderTag: string, payload: any): Promise<void> {
     const socket = this.tagToWSConn.get(senderTag);
+
     if (typeof socket === "undefined") {
       // do I return an error to the client or do I open a new WS connection to the relay server?
       // I'd say the second option. But I'm lacking the url now...
-      await this.openWS(defaultRelayServerUrl, senderTag);
+      await this.openWStoRelay(defaultRelayServerUrl, senderTag);
     }
 
     return new Promise<void>((resolve, reject) => {
@@ -160,6 +161,7 @@ export class NymWsServiceProvider {
 
 // onOpen is called when a new WS to a relay-server is created on request from a mixnet user.
   private onOpen(socket: WebSocket, senderTag: string) {
+    this.tagToWSConn.set(senderTag, socket);
     socket.onmessage = (event: MessageEvent) => this.onPayload(senderTag, event);
     socket.onclose = event => this.onClose(event, socket, senderTag);
     this.sendMessageToMixnet("opened", senderTag);
@@ -175,10 +177,10 @@ export class NymWsServiceProvider {
 
 // onPayload is called when a relay-server sends a payload to an existing WS.
 // The service provider forwards the received payload to the matching mixnet user.
-  private onPayload(senderTag: string, e: { data: any }) {
-    if (typeof e.data === "undefined") return;
-    const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
-    console.log("Payload from relay: " + e.data);
+  private onPayload(senderTag: string, m: { data: any }) {
+    if (typeof m.data === "undefined") return;
+    const payload: JsonRpcPayload = typeof m.data === "string" ? safeJsonParse(m.data) : m.data;
+    console.log("Payload from relay: " + m.data);
     this.sendMessageToMixnet(safeJsonStringify(payload), senderTag);
   }
 
@@ -193,14 +195,13 @@ export class NymWsServiceProvider {
   private sendMessageToMixnet(messageContent: string, senderTag: string) {
     const message = {
       type: "reply",
-      //message: safeJsonStringify(messageContentToSend),
       message: messageContent,
       senderTag: senderTag,
     };
     // as I'm using the senderTag, the matching SURBs automatically retrieved, this also removes all need to keep track of the SURBs!
 
     // Send our message object out via our websocket connection.
-    // TODO might want to try to switch to safeJsonStringify, but it causes issues... I think when sending back errors?
+    // might want to try to switch to safeJsonStringify, but it causes issues... I think when sending back errors?
     this.mixnetWebsocketConnection.send(JSON.stringify(message));
   }
 
@@ -212,8 +213,8 @@ export class NymWsServiceProvider {
     this.mixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
   }
 
-// Function that connects our application to the mixnet Websocket. We want to call this first in our main function.
-  private connectWebsocket(url: string) {
+// connectToMixnetWebsocket connects our application to the mixnet Websocket. We want to call this first in our main function.
+  private connectToMixnetWebsocket(url: string) {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);
       console.log("SP connecting to Mixnet Websocket (Nym Client)...");
@@ -223,7 +224,6 @@ export class NymWsServiceProvider {
       server.onerror = function (err) {
         reject(err);
       };
-
     });
   }
 
@@ -231,6 +231,11 @@ export class NymWsServiceProvider {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
       console.log("serviceProvider not running already");
     } else {
+      this.tagToWSConn.keys().forEach(senderTag => {
+        this.closeWStoRelay(senderTag).then(() => {
+          console.log(senderTag + " conn closed");
+        });
+      });
       this.mixnetWebsocketConnection.close();
     }
   }

@@ -144,7 +144,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       await SP.setup();
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await SP.openWS(await formatRelayUrl(), senderTag);
+      await SP.openWStoRelay(await formatRelayUrl(), senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
 
       SP.terminateServiceProvider();
@@ -164,7 +164,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       let expectedError: Error | undefined;
 
       try {
-        await SP.openWS(rpcUrlWithoutProjectId, senderTag);
+        await SP.openWStoRelay(rpcUrlWithoutProjectId, senderTag);
       } catch (error) {
         expectedError = error;
       }
@@ -182,9 +182,9 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       await SP.setup();
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await SP.openWS(await formatRelayUrl(), senderTag);
+      await SP.openWStoRelay(await formatRelayUrl(), senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-      await SP.closeWS(senderTag);
+      await SP.closeWStoRelay(senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
 
       SP.terminateServiceProvider();
@@ -196,13 +196,13 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       let expectedError: Error | undefined;
 
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await SP.openWS(await formatRelayUrl(), senderTag);
+      await SP.openWStoRelay(await formatRelayUrl(), senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-      await SP.closeWS(senderTag);
+      await SP.closeWStoRelay(senderTag);
       chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
 
       try {
-        await SP.closeWS(senderTag);
+        await SP.closeWStoRelay(senderTag);
       } catch (error) {
         expectedError = error;
       }
@@ -218,7 +218,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     it("send a valid WC RPC", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      await SP.openWS(await formatRelayUrl(), senderTag);
+      await SP.openWStoRelay(await formatRelayUrl(), senderTag);
 
       const RPCpayload = mockWcRpcPublish();
 
@@ -233,7 +233,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       };
 
       try {
-        await SP.forwardRPC(senderTag, RPCpayload);
+        await SP.forwardRPCtoRelay(senderTag, RPCpayload);
       } catch (error) {
         chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
       }
