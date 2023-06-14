@@ -26,8 +26,8 @@ export class NymWsServiceProvider {
   private ourAddress: string | undefined;
 
   // TODO not even sure I need it to be a Bidirectional Map as I'm passing senderTag as param to onClose/OnPayload.
-  //private tagToWSConn: Map<string, WebSocket> = new Map();
-  public tagToWSConn: BiMap = new BiMap;
+  public tagToWSConn: Map<string, WebSocket> = new Map();
+  //public tagToWSConn: BiMap = new BiMap;
 
   // Always call setup after new NymWsServiceProvider(); ! Necessary because the constructor cannot wait.
   public async setup() {
@@ -231,7 +231,7 @@ export class NymWsServiceProvider {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
       console.log("serviceProvider not running already");
     } else {
-      this.tagToWSConn.keys().forEach(senderTag => {
+      this.tagToWSConn.forEach((WSConn, senderTag, map) => {
         this.closeWStoRelay(senderTag).then(() => {
           console.log(senderTag + " conn closed");
         });
