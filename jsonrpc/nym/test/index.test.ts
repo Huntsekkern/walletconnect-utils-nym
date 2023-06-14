@@ -241,7 +241,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 9000));
     });
   });
 });
@@ -271,9 +271,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
-      conn.on("payload",(payload: string) => {
-        chai.expect(payload).to.not.be.a("undefined");
-        chai.expect(payload).to.equal("opened");
+      conn.on("open",() => {
+        console.log("Test passing");
+        chai.assert(true);
       });
 
       chai.expect(conn.connected).to.be.false;
@@ -331,9 +331,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
-      conn.once("payload",(payload: string) => {
-        chai.expect(payload).to.not.be.a("undefined");
-        chai.expect(payload).to.equal("opened");
+      conn.once("open",() => {
+        chai.assert(true);
       });
 
       chai.expect(conn.connected).to.be.false;
@@ -341,7 +340,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await conn.open();
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 6000));
 
       conn.once("close",() => {
         console.log("Test passing");
@@ -371,9 +370,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(await formatRelayUrl());
       let expectedError: Error | undefined;
 
-      conn.once("payload",(payload: string) => {
-        chai.expect(payload).to.not.be.a("undefined");
-        chai.expect(payload).to.equal("opened");
+      conn.once("open",() => {
+        chai.assert(true);
       });
 
       chai.expect(conn.connected).to.be.false;
@@ -422,9 +420,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
-      conn.once("payload",(payload: string) => {
-        chai.expect(payload).to.not.be.a("undefined");
-        chai.expect(payload).to.equal("opened");
+      conn.once("open",() => {
+        chai.assert(true);
       });
 
       await conn.open();

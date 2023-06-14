@@ -32,6 +32,8 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   private connectedToRelay = false;
 
+  // connectedToMixnet is not used, as the (typeof this.mixnetWebsocketConnection !== "undefined") check is more direct
+
   private port = "1977";
   private localClientUrl = "ws://127.0.0.1:" + this.port;
   private mixnetWebsocketConnection: WebSocket | any;
@@ -49,7 +51,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   // TODO careful, connected is about the local Nym client, while connecting is up to the point the request to the SP to open is sent.
   // But I also need to respect the interface. Anyways, this should be when is fully connected, hiding the mixnet from the outside eye.
   get connected(): boolean {
-    return typeof this.mixnetWebsocketConnection !== "undefined";
+    return this.connectedToRelay;
   }
 
   get connecting(): boolean {
@@ -86,15 +88,15 @@ export class NymWsConnection implements IJsonRpcConnection {
       }
 
       // This must match my mini-protocol as a close order for the SP.
-      this.nymSend("close").catch(
-        e => console.log("failed to send the request to close a WSConn: " || e)
-      );
+      this.nymSend("close").catch(e => {
+          console.log("failed to send the request to close a WSConn: " || e);
+          reject(e);
+      });
 
-      // By calling this.onClose() right here, I would not be waiting for the SP confirming the closure.
+      // By calling this.onRelayClose() right here, I would not be waiting for the SP confirming the closure.
       // Instead, I now properly wait for the SP answer to close the socket.
       // This comes with advantage and disadvantages I guess? Make sure that incoming messages are waited for.
       // But also might fail to close if the reply is lost.
-
       resolve();
     });
   }
@@ -109,7 +111,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   // ---------- Private ----------------------------------------------- //
 
-  // nymSend wraps nym.client.send() to reduce code redundancy.
+  // nymSend wraps this.mixnetWebsocketConnection.send() to reduce code redundancy while keeping the public send clean.
   private async nymSend(payload: string): Promise<void> {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
       this.mixnetWebsocketConnection = await this.register();
@@ -130,7 +132,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
 
-  // register connects to the local Nym client, then calls onOpen
+  // register connects to the local Nym client, then calls requestOpenWSConn
   private async register(url: string = this.url): Promise<void> {
     this.url = url;
     this.registering = true;
@@ -155,31 +157,38 @@ export class NymWsConnection implements IJsonRpcConnection {
       });
     }
 
-    this.onOpen(this.mixnetWebsocketConnection);
-  }
-
-  // onOpen asks the SP to open a connection to the relay
-  private onOpen(mixnetWebsocketConnection: WebSocket) {
     this.mixnetWebsocketConnection.onmessage = (e: any) => {
-      //console.log('Got a message: ', e.args.payload);
       this.onPayload(e);
     };
 
     this.sendSelfAddressRequest();
 
+    this.requestOpenWSConn(this.url);
+  }
+
+
+
+  // requestOpenWSConn asks the SP to open a connection to the relay
+  private requestOpenWSConn(url: string = this.url) {
     // send the open request along with senderTag and SURBs now
     // If using nymSend, important to be after the this.nym = nym;
     // and then as well that payload is 'open' as a chosen way to state "please open a conn"
-    this.nymSend("open:" + this.url).catch(
+    this.nymSend("open:" + url).catch(
       e => console.log("failed to send the request to open a WSConn: " || e)
     );
+  }
 
+  // onRelayOpen processes after receiving the confirmation that the SP opened a connection to the relay
+  private onRelayOpen() {
+    this.connectedToRelay = true; // TODO add more implication/usage of it, use it when sending??
     this.registering = false;
+    this.connectedToRelay = true;
+    // this.events.emit("open", "opened");
     this.events.emit("open");
   }
 
-  // onClose kills the connection to the local Nym Client
-  private onClose() {
+  // onRelayClose kills the connection to the local Nym Client
+  private onRelayClose() {
     this.mixnetWebsocketConnection.close();
     this.mixnetWebsocketConnection = undefined;
     this.registering = false;
@@ -202,11 +211,10 @@ export class NymWsConnection implements IJsonRpcConnection {
         const parsedPayload = safeJsonParse(payload);
         if (payload === "closed") {
           console.log("WS connection between SP and relay is closed");
-          this.onClose();
+          this.onRelayClose();
         } else if (payload === "opened") {
           console.log("WS connection between SP and relay is opened");
-          this.connectedToRelay = true; // TODO add more implication/usage of it, use it when sending??
-          this.events.emit("payload", payload);
+          this.onRelayOpen();
         } else if (parsedPayload.hasOwnProperty("error")) {
           console.log("SP responded with error: ");
           this.onReceivedError(parsedPayload.id, parsedPayload.error);
@@ -220,8 +228,6 @@ export class NymWsConnection implements IJsonRpcConnection {
 /*    } catch (err) {
       console.log("client onPayload error: " + err + " , happened withPayload: " + e.data); // TODO this.onError?
     }*/
-
-    // also, we could imagine socket.onclose/onerror being passed as message, so we should distinguish them here and process them accordingly.
   }
 
   private onSendError(id: number, e: Error) {
@@ -278,7 +284,8 @@ export class NymWsConnection implements IJsonRpcConnection {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
       console.log("terminateClient not executed: client not running already");
     } else {
-      this.onClose();
+      this.nymSend("close");
+      this.onRelayClose();
     }
   }
 }
