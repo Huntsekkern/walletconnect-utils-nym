@@ -39,12 +39,14 @@ export class NymWsConnection implements IJsonRpcConnection {
   private mixnetWebsocketConnection: WebSocket | any;
   private ourAddress: string | undefined;
 
-  constructor(public url: string) {
+  constructor(public url: string, localClientPort = "1977") {
     // TODO: add the nym SP addr? can be hardcoded
     if (!isWsUrl(url)) {
       throw new Error(`Provided URL is not compatible with WebSocket connection: ${url}`);
     }
     this.url = url;
+    this.port = localClientPort;
+    this.localClientUrl = "ws://127.0.0.1:" + this.port;
   }
 
 

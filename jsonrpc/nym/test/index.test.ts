@@ -50,6 +50,14 @@ Both of those batch of tests are done in this file because of JS/TS resolution i
 
 // the Nym client of the SP I'm spinning in the tests must match the SP Nym Address given as default in nym-ws
 
+/*
+./nym/target/release/nym-client run --id wc-test-client2 -p 1977
+./nym/target/release/nym-client run --id sp-test-client2 -p 1978
++ for the last test
+./nym/target/release/nym-client run --id wc-test-client79 -p 1979
+./nym/target/release/nym-client run --id wc-test-client80 -p 1980
+ */
+
 function generateRandomBytes32(): string {
   const random = randomBytes(32);
   return toString(random, BASE16);
@@ -396,13 +404,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
         chai.expect(parsedPayload.id).to.equal(RPCpayload.id);
         chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
         chai.expect(parsedPayload.result).to.equal(true);
+        console.log("Test passing");
       });
 
-      try {
-        await chai.expect(conn.send(RPCpayload)).to.be.fulfilled;
-      } catch (error) {
-        chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
-      }
+      await chai.expect(conn.send(RPCpayload)).to.be.fulfilled;
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
@@ -413,6 +418,82 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
     });
-    // TODO test with 2 or 3 users
+
+    // I think this test has a chance to fail, even though it passes most of the time.
+    // I mean, all tests have a chance to fail, if the staging relay server or the mixnet are down for an instant.
+    // But this one is more susceptible.
+    // Also, this is the only test of the test suite which requires to run 4 nym clients...
+    /*
+    ./nym/target/release/nym-client run --id wc-test-client2 -p 1977
+    ./nym/target/release/nym-client run --id sp-test-client2 -p 1978
+    as usual +
+    ./nym/target/release/nym-client run --id wc-test-client79 -p 1979
+    ./nym/target/release/nym-client run --id wc-test-client80 -p 1980
+     */
+    it("send valid WC RPCs from 3 different users", async () => {
+      const SP = new NymWsServiceProvider();
+      await SP.setup();
+      const conn1 = new NymWsConnection(await formatRelayUrl(), "1977");
+      const conn2 = new NymWsConnection(await formatRelayUrl(), "1979");
+      const conn3 = new NymWsConnection(await formatRelayUrl(), "1980");
+
+      conn1.once("open",() => {
+        chai.assert(true);
+      });
+      conn2.once("open",() => {
+        chai.assert(true);
+      });
+      conn3.once("open",() => {
+        chai.assert(true);
+      });
+
+      const RPCpayload1 = mockWcRpcPublish();
+      const RPCpayload2 = mockWcRpcPublish();
+      const RPCpayload3 = mockWcRpcPublish();
+
+      await chai.expect(conn1.open()).to.be.fulfilled;
+      await chai.expect(conn2.open()).to.be.fulfilled;
+      await chai.expect(conn3.open()).to.be.fulfilled;
+
+      conn1.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        const parsedPayload = safeJsonParse(payload);
+        chai.expect(parsedPayload.id).to.equal(RPCpayload1.id);
+        chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
+        chai.expect(parsedPayload.result).to.equal(true);
+        console.log("Test passing for 1");
+      });
+      conn2.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        const parsedPayload = safeJsonParse(payload);
+        chai.expect(parsedPayload.id).to.equal(RPCpayload2.id);
+        chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
+        chai.expect(parsedPayload.result).to.equal(true);
+        console.log("Test passing for 2");
+      });
+      conn3.once("payload",(payload: string) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        const parsedPayload = safeJsonParse(payload);
+        chai.expect(parsedPayload.id).to.equal(RPCpayload3.id);
+        chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
+        chai.expect(parsedPayload.result).to.equal(true);
+        console.log("Test passing for 3");
+      });
+
+      await chai.expect(conn1.send(RPCpayload1)).to.be.fulfilled;
+      await chai.expect(conn2.send(RPCpayload2)).to.be.fulfilled;
+      await chai.expect(conn3.send(RPCpayload3)).to.be.fulfilled;
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
+
+      conn1.terminateClient();
+      conn2.terminateClient();
+      conn3.terminateClient();
+      SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
+    });
   });
 });
