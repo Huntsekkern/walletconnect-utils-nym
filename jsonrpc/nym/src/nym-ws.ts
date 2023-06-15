@@ -48,8 +48,6 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
 
-  // TODO careful, connected is about the local Nym client, while connecting is up to the point the request to the SP to open is sent.
-  // But I also need to respect the interface. Anyways, this should be when is fully connected, hiding the mixnet from the outside eye.
   get connected(): boolean {
     return this.connectedToRelay;
   }
@@ -250,7 +248,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   // onRelayOpen processes after receiving the confirmation that the SP opened a connection to the relay
   private onRelayOpen() {
-    this.connectedToRelay = true; // TODO add more implication/usage of it, use it when sending??
+    this.connectedToRelay = true;
     this.registering = false;
     this.connectedToRelay = true;
     // this.events.emit("open", "opened");
