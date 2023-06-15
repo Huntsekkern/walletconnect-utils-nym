@@ -82,22 +82,32 @@ export class NymWsConnection implements IJsonRpcConnection {
   // The user then expects the confirmation from the SP to fully disconnect from the local Nym client
   public async close(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      // Mixnet already shut down
       if (typeof this.mixnetWebsocketConnection === "undefined") {
         reject(new Error("Connection already closed"));
         return;
       }
 
-      // This must match my mini-protocol as a close order for the SP.
-      this.nymSend("close").catch(e => {
+      // Relay shut down but not the mixnet, then finish the local shutting down.
+      if (!this.connectedToRelay) {
+        this.onRelayClose();
+        resolve();
+        return;
+      }
+
+      // Else this match my mini-protocol as a close order for the SP, then waits for the confirmation to resolve.
+      this.nymSend("close").then(() => {
+        // By calling this.onRelayClose() right here, I would not be waiting for the SP confirming the closure.
+        // Instead, I now properly wait for the SP answer to close the socket.
+        // This comes with advantage and disadvantages I guess? Make sure that incoming messages are waited for.
+        // But also might fail to close if the reply is lost.
+        this.events.once("close", () => {
+          resolve();
+        });
+      }).catch(e => {
           console.log("failed to send the request to close a WSConn: " || e);
           reject(e);
       });
-
-      // By calling this.onRelayClose() right here, I would not be waiting for the SP confirming the closure.
-      // Instead, I now properly wait for the SP answer to close the socket.
-      // This comes with advantage and disadvantages I guess? Make sure that incoming messages are waited for.
-      // But also might fail to close if the reply is lost.
-      resolve();
     });
   }
 
@@ -113,8 +123,9 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   // nymSend wraps this.mixnetWebsocketConnection.send() to reduce code redundancy while keeping the public send clean.
   private async nymSend(payload: string): Promise<void> {
+    // This must NOT block if the relay connection is not established, as it may send open requests as well.
     if (typeof this.mixnetWebsocketConnection === "undefined") {
-      this.mixnetWebsocketConnection = await this.register();
+      await this.register();
     }
 
     const recipient = serviceProviderDefaultAddress;
@@ -134,10 +145,51 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   // register connects to the local Nym client, then calls requestOpenWSConn
   private async register(url: string = this.url): Promise<void> {
+    if (!isWsUrl(url)) {
+      throw new Error(`Provided URL is not compatible with WebSocket connection: ${url}`);
+    }
+
+    // Maybe this doesn't fully follow the default WalletConnect implementation, as it doesn't allow to connect to several relays simultaneously, but for now, this shortcut is fine.
+    if (this.connectedToRelay) {
+      return;
+    }
+
+
+    if (this.registering) {
+      const currentMaxListeners = this.events.getMaxListeners();
+      if (
+        this.events.listenerCount("register_error") >= currentMaxListeners ||
+        this.events.listenerCount("open") >= currentMaxListeners
+      ) {
+        this.events.setMaxListeners(currentMaxListeners + 1);
+      }
+      return new Promise((resolve, reject) => {
+        this.events.once("register_error", error => {
+          this.resetMaxListeners();
+          reject(error);
+        });
+        this.events.once("open", () => {
+          this.resetMaxListeners();
+          if (typeof this.mixnetWebsocketConnection === "undefined" || !this.connectedToRelay) {
+            return reject(new Error("WebSocket connection is missing or invalid"));
+          }
+          resolve();
+        });
+      });
+    }
+
     this.url = url;
     this.registering = true;
 
+    // Might be the case that only the relay connection is down.
+    if (typeof this.mixnetWebsocketConnection === "undefined") {
+      await this.connectToMixnet();
+    }
 
+    await this.requestOpenWSConn(this.url);
+  }
+
+  private async connectToMixnet(): Promise<WebSocket> {
     // Set up and handle websocket connection to our desktop client.
     this.mixnetWebsocketConnection = await this.connectWebsocket(this.localClientUrl).then(function (c) {
       return c;
@@ -145,14 +197,16 @@ export class NymWsConnection implements IJsonRpcConnection {
       console.log("Websocket connection error on the user. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
       console.log(err);
       return new Promise((resolve, reject) => {
+        this.emitRegisterError(err);
         reject(err);
       });
     });
 
     if (!this.mixnetWebsocketConnection) {
-      const err = "Oh no! Could not create client";
+      const err = new Error("Oh no! Could not create client");
       console.error(err);
       return new Promise((resolve, reject) => {
+        this.emitRegisterError(err);
         reject(err);
       });
     }
@@ -163,19 +217,35 @@ export class NymWsConnection implements IJsonRpcConnection {
 
     this.sendSelfAddressRequest();
 
-    this.requestOpenWSConn(this.url);
+    return new Promise((resolve, reject) => {
+      resolve(this.mixnetWebsocketConnection);
+    });
   }
 
-
-
   // requestOpenWSConn asks the SP to open a connection to the relay
-  private requestOpenWSConn(url: string = this.url) {
+  private async requestOpenWSConn(url: string = this.url): Promise<void> {
     // send the open request along with senderTag and SURBs now
     // If using nymSend, important to be after the this.nym = nym;
     // and then as well that payload is 'open' as a chosen way to state "please open a conn"
-    this.nymSend("open:" + url).catch(
-      e => console.log("failed to send the request to open a WSConn: " || e)
-    );
+    return new Promise<void>((resolve, reject) => {
+      this.nymSend("open:" + url).then(() => {
+        this.events.once("open", () => {
+          resolve();
+        });
+        this.events.once("payload", payload => {
+          // TODO might want to make startsWith emcompass all "Error:", but for now, that's the one I've been getting.
+          if (typeof payload.error != "undefined" && typeof payload.error.message != "undefined" && payload.error.message.startsWith("Error: Couldn't open a WS to relay")) {
+            const err = new Error(payload.error.message.substring(7));
+            this.emitRegisterError(err);
+            reject(err);
+          }
+        });
+      }).catch(e => {
+        console.log("failed to send the request to open a WSConn: " || e);
+        this.emitRegisterError(e);
+        reject(e);
+      });
+    });
   }
 
   // onRelayOpen processes after receiving the confirmation that the SP opened a connection to the relay
@@ -252,6 +322,14 @@ export class NymWsConnection implements IJsonRpcConnection {
     if (this.events.getMaxListeners() > EVENT_EMITTER_MAX_LISTENERS_DEFAULT) {
       this.events.setMaxListeners(EVENT_EMITTER_MAX_LISTENERS_DEFAULT);
     }
+  }
+
+  private emitRegisterError(errorEvent: Error) {
+    const error = this.parseError(
+      new Error(errorEvent?.message || `WebSocket connection failed for URL: ${this.url}`),
+    );
+    this.events.emit("register_error", error);
+    return error;
   }
 
 

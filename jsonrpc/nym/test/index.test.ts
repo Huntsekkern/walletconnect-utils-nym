@@ -241,7 +241,7 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 9000));
+      await new Promise(r => setTimeout(r, 5000));
     });
   });
 });
@@ -272,16 +272,14 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const conn = new NymWsConnection(await formatRelayUrl());
 
       conn.on("open",() => {
-        console.log("Test passing");
         chai.assert(true);
+        console.log("Test passing");
       });
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
-      await conn.open();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await chai.expect(conn.open()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
@@ -304,17 +302,14 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
-      let expectedError: Error | undefined;
 
       conn.on("payload",(payload: JsonRpcError) => {
         chai.expect(payload).to.not.be.a("undefined");
         chai.expect(payload.error.message).to.equal("Error: Couldn't open a WS to relay: Error: Unexpected server response: 400");
+        console.log("Test passing");
       });
 
-      await conn.open();
-
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await chai.expect(conn.open()).to.be.rejected;
 
       conn.terminateClient();
       SP.terminateServiceProvider();
@@ -322,6 +317,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
     });
+
+    // TODO add a double open test while registering, to check the promise/event handling
 
   });
 
@@ -337,22 +334,18 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
-      await conn.open();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 6000));
+      await chai.expect(conn.open()).to.be.fulfilled;
 
       conn.once("close",() => {
-        console.log("Test passing");
         chai.assert(true);
+        console.log("Test passing");
       });
 
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
-      await conn.close();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await chai.expect(conn.close()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
@@ -368,7 +361,6 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
-      let expectedError: Error | undefined;
 
       conn.once("open",() => {
         chai.assert(true);
@@ -376,10 +368,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
-      await conn.open();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await chai.expect(conn.open()).to.be.fulfilled;
 
       conn.once("close",() => {
         chai.assert(true);
@@ -387,25 +377,13 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
-      await conn.close();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      await chai.expect(conn.close()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.false;
       chai.expect(SP.tagToWSConn.size).to.equal(0);
 
-      try {
-        await conn.close();
-      } catch (error) {
-        expectedError = error;
-      }
-
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
-
-      chai.expect(expectedError instanceof Error).to.be.true;
-      chai.expect((expectedError as Error).message).to.equal("Connection already closed");
+      await chai.expect(conn.close()).to.be.rejectedWith("Connection already closed");
 
       SP.terminateServiceProvider();
 
@@ -424,12 +402,9 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
         chai.assert(true);
       });
 
-      await conn.open();
+      await chai.expect(conn.open()).to.be.fulfilled;
 
       const RPCpayload = mockWcRpcPublish();
-
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
 
       conn.once("payload",(payload: string) => {
         chai.expect(payload).to.not.be.a("undefined");
@@ -440,11 +415,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       });
 
       try {
-        await conn.send(RPCpayload);
+        await chai.expect(conn.send(RPCpayload)).to.be.fulfilled;
       } catch (error) {
         chai.expect(true).to.be.false; // hacky way to make the test fail if an error is caught
       }
-
 
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
@@ -455,5 +429,6 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
     });
+    // TODO test with 2 or 3 users
   });
 });
