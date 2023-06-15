@@ -27,16 +27,6 @@ const BASE16 = "base16";
 
 const RELAY_URL = "wss://staging.relay.walletconnect.com";
 
-const TEST_ID = 1;
-const TEST_METHOD = "test_method";
-const TEST_PARAMS = { something: true };
-const TEST_RESULT = true;
-
-const TEST_JSONRPC_RESULT = {
-  id: TEST_ID,
-  jsonrpc: "2.0",
-  result: TEST_RESULT,
-};
 
 /*
 Logic should be:
@@ -143,7 +133,19 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       SP.terminateServiceProvider();
     });
 
-    // TODO should probably check for double open here too!
+    it("can open a connection, then gracefully pretends to open a new connection while just reusing the same one", async () => {
+      const SP = new NymWsServiceProvider();
+      await SP.setup();
+
+      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
+      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
+      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
+
+      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
+      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
+
+      SP.terminateServiceProvider();
+    });
   });
 
   describe("close", () => {
@@ -277,8 +279,31 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await new Promise(r => setTimeout(r, 3000));
     });
 
-    // TODO add a double open test while registering, to check the promise/event handling
+    it("can open a connection, then gracefully handles a second open request", async () => {
+      const SP = new NymWsServiceProvider();
+      await SP.setup();
+      const conn = new NymWsConnection(await formatRelayUrl());
 
+
+      chai.expect(conn.connected).to.be.false;
+      chai.expect(SP.tagToWSConn.size).to.equal(0);
+
+      // TODO I think skipping the await does what I want it to do, but not 100% sure.
+      conn.open();
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 500));
+      await chai.expect(conn.open()).to.be.fulfilled;
+
+      chai.expect(conn.connected).to.be.true;
+      chai.expect(SP.tagToWSConn.size).to.equal(1);
+
+      conn.terminateClient();
+      SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      await new Promise(r => setTimeout(r, 3000));
+
+    });
   });
 
   describe("close", () => {

@@ -152,7 +152,6 @@ export class NymWsConnection implements IJsonRpcConnection {
       return;
     }
 
-
     if (this.registering) {
       const currentMaxListeners = this.events.getMaxListeners();
       if (
@@ -215,7 +214,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
     this.sendSelfAddressRequest();
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       resolve(this.mixnetWebsocketConnection);
     });
   }
@@ -251,7 +250,6 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.connectedToRelay = true;
     this.registering = false;
     this.connectedToRelay = true;
-    // this.events.emit("open", "opened");
     this.events.emit("open");
   }
 

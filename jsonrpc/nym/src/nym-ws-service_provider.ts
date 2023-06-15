@@ -97,6 +97,15 @@ export class NymWsServiceProvider {
         this.onError(0, err, senderTag);
         reject(err);
       }
+
+      if (this.tagToWSConn.has(senderTag)) {
+        // The socket already exists. A more advanced version could let the user open connections to several relays...
+        // But for now, it doesn't seem necessary, so let's just tell the user: yes, the connection is open.
+        // By doing that, I also don't allow the user to change relays without closing the connection first. It's fine.
+        this.sendMessageToMixnet("opened", senderTag);
+        resolve(this.tagToWSConn.get(senderTag));
+      }
+
       const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
       const socket: WebSocket = new WebSocket(url, [], opts);
       (socket as any).on("error", (errorEvent: any) => {
