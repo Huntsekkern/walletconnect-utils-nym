@@ -92,7 +92,7 @@ export class NymWsServiceProvider {
   public async openWStoRelay(url: string, senderTag: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!isWsUrl(url)) {
-        // TODO error, either choose a relay server url or transmit error to user? Might or might not want to extract in the calling function
+        // TODO error, either choose a relay server url or transmit error to user?
         const err = new Error("The url given is not a valid WS url");
         this.onError(0, err, senderTag);
         reject(err);
@@ -240,7 +240,7 @@ export class NymWsServiceProvider {
     if (typeof this.mixnetWebsocketConnection === "undefined") {
       console.log("serviceProvider not running already");
     } else {
-      this.tagToWSConn.forEach((WSConn, senderTag, map) => {
+      this.tagToWSConn.forEach((WSConn, senderTag) => {
         this.closeWStoRelay(senderTag).then(() => {
           console.log(senderTag + " conn closed");
         });
