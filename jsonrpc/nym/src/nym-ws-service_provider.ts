@@ -17,7 +17,7 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 // TODO
 const defaultRelayServerUrl = "wss://staging.relay.walletconnect.com";
 
-// TODO nearly everything can be private here as they are mostly triggered by incoming messages
+// TODO nearly everything but setup can be private here as they are mostly triggered by incoming messages
 // But for unit-testing I made some part public, take into account and could reswitch to private later.
 export class NymWsServiceProvider {
   private port = "1978";
