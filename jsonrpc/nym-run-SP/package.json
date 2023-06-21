@@ -4,24 +4,20 @@
   "author": "Huntsekker",
   "license": "MIT",
   "description": "Nym Service provider acting as intermediary post-mixnet between the clients and the Relay Servers",
-  "main": "dist/esm/run-nym-wc-SP.js",
-  "module": "dist/esm/run-nym-wc-SP.js",
-  "browser": "dist/esm/run-nym-wc-SP.js",
-  "types": "dist/cjs/run-nym-wc-SP.d.ts",
-  "unpkg": "dist/umd/run-nym-wc-SP.min.js",
+  "main": "dist/run-nym-wc-SP.js",
+  "module": "dist/run-nym-wc-SP.js",
+  "browser": "dist/run-nym-wc-SP.js",
+  "types": "dist/run-nym-wc-SP.d.ts",
+  "unpkg": "dist/run-nym-wc-SP.min.js",
   "files": [
     "dist"
   ],
   "scripts": {
     "clean": "rm -rf dist",
     "build:pre": "run-s clean",
-    "build:esm": "npx tsc -p tsconfig.esm.json",
+    "build:esm": "npx tsc -p tsconfig.json",
     "build": "run-s build:pre build:esm",
-    "test": "env TS_NODE_PROJECT=\"tsconfig.cjs.json\" mocha --timeout 20000 --exit -r ts-node/register ./test/**/*.test.ts",
-    "lint": "eslint -c '../../.eslintrc' --fix './src/**/*.ts'",
-    "npm-publish:latest": "npm publish --access public --tag latest",
-    "npm-publish:canary": "npm publish --access public --tag canary",
-    "prepublishOnly": "npm run test && npm run build"
+    "lint": "eslint -c '../../.eslintrc' --fix './src/**/*.ts'"
   },
   "dependencies": {
     "nym-ws-connection": "1.0.0"
