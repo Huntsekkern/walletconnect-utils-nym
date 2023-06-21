@@ -9,6 +9,7 @@
   "browser": "dist/run-nym-wc-SP.js",
   "types": "dist/run-nym-wc-SP.d.ts",
   "unpkg": "dist/run-nym-wc-SP.min.js",
+  "type": "module",
   "files": [
     "dist"
   ],
