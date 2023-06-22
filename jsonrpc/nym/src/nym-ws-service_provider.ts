@@ -36,7 +36,7 @@ export class NymWsServiceProvider {
       return c;
     }).catch((err) => {
       console.log("Websocket connection error on the service-provider. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
-      console.log(err);
+      console.log(err.error);
     });
 
     this.mixnetWebsocketConnection.onmessage = (e: any) => {

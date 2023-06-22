@@ -196,7 +196,7 @@ export class NymWsConnection implements IJsonRpcConnection {
       console.log("Websocket connection error on the user. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
       console.log(err);
       return new Promise((resolve, reject) => {
-        this.emitRegisterError(err);
+        this.emitRegisterError(err.error);
         reject(err);
       });
     });
