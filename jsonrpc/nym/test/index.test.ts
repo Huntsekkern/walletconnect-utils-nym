@@ -253,11 +253,15 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
 
-      conn.terminateClient();
+      await conn.close();
       SP.terminateServiceProvider();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
+      // conn.terminateClient();
+      // SP.terminateServiceProvider();
+      //
+      // // eslint-disable-next-line promise/param-names
+      // await new Promise(r => setTimeout(r, 3000));
     });
     it("rejects with an error if `wss:` URL is valid but connection cannot be made", async () => {
       const auth = await signJWT(RELAY_URL);
@@ -280,11 +284,15 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       await chai.expect(conn.open()).to.be.rejected;
 
-      conn.terminateClient();
+      await conn.close();
       SP.terminateServiceProvider();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
+      // conn.terminateClient();
+      // SP.terminateServiceProvider();
+      //
+      // // eslint-disable-next-line promise/param-names
+      // await new Promise(r => setTimeout(r, 3000));
     });
 
     it("can open a connection, then gracefully handles a second open request", async () => {
@@ -305,11 +313,15 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       chai.expect(conn.connected).to.be.true;
       chai.expect(SP.tagToWSConn.size).to.equal(1);
 
-      conn.terminateClient();
+      await conn.close();
       SP.terminateServiceProvider();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
+      // conn.terminateClient();
+      // SP.terminateServiceProvider();
+      //
+      // // eslint-disable-next-line promise/param-names
+      // await new Promise(r => setTimeout(r, 3000));
 
     });
   });
@@ -346,7 +358,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // await new Promise(r => setTimeout(r, 3000));
     });
 
     it("can not double close a connection, with correct error message", async () => {
@@ -380,7 +392,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // await new Promise(r => setTimeout(r, 3000));
     });
   });
 
@@ -412,11 +424,15 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
 
-      conn.terminateClient();
+      await conn.close();
       SP.terminateServiceProvider();
 
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
+      // conn.terminateClient();
+      // SP.terminateServiceProvider();
+      //
+      // // eslint-disable-next-line promise/param-names
+      // await new Promise(r => setTimeout(r, 3000));
     });
 
     // I think this test has a chance to fail, even though it passes most of the time.
@@ -487,13 +503,17 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // eslint-disable-next-line promise/param-names
       await new Promise(r => setTimeout(r, 3000));
 
-      conn1.terminateClient();
-      conn2.terminateClient();
-      conn3.terminateClient();
+
+      await conn1.close();
+      await conn2.close();
+      await conn3.close();
+      // conn1.terminateClient();
+      // conn2.terminateClient();
+      // conn3.terminateClient();
       SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 3000));
+      // await new Promise(r => setTimeout(r, 3000));
     });
   });
 });
