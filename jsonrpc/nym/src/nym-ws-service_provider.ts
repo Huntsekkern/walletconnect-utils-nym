@@ -222,7 +222,7 @@ export class NymWsServiceProvider {
     this.mixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
   }
 
-// connectToMixnetWebsocket connects our application to the mixnet Websocket. We want to call this first in our main function.
+// connectToMixnetWebsocket connects our application to the mixnet Websocket. We want to call this first when setting up.
   private connectToMixnetWebsocket(url: string) {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);

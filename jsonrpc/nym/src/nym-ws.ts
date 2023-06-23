@@ -341,7 +341,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.mixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
   }
 
-  // Function that connects our application to the mixnet Websocket. We want to call this first in our main function.
+  // Function that connects our application to the mixnet Websocket. We want to call this when registering.
   private connectWebsocket(url: string): Promise<void> {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);
