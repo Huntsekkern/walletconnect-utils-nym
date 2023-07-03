@@ -58,7 +58,7 @@ export class NymWsServiceProvider {
         console.log("\x1b[94mSP address is: " + this.ourAddress + "\x1b[0m");
       } else if (message.type == "received") {
         // Those are the messages received from the mixnet, i.e., from the wallets and dapps.
-        console.log("Received from a client: " + message.message);
+        console.log("\x1b[92mReceived from a client: " + message.message + "\x1b[0m");
         await this.handleReceivedMixnetMessage(message);
       }
     } catch (err) {
@@ -209,6 +209,7 @@ export class NymWsServiceProvider {
     };
     // as I'm using the senderTag, the matching SURBs automatically retrieved, this also removes all need to keep track of the SURBs!
 
+    console.log("\x1b[96mSent to a client: " + JSON.stringify(message) + "\x1b[0m");
     // Send our message object out via our websocket connection.
     // might want to try to switch to safeJsonStringify, but it causes issues... I think when sending back errors?
     this.mixnetWebsocketConnection.send(JSON.stringify(message));
