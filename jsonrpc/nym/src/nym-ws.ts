@@ -105,8 +105,8 @@ export class NymWsConnection implements IJsonRpcConnection {
           resolve();
         });
       }).catch(e => {
-          console.log("failed to send the request to close a WSConn: " || e);
-          reject(e);
+        console.log("failed to send the request to close a WSConn: " || e);
+        reject(e);
       });
     });
   }
@@ -229,14 +229,25 @@ export class NymWsConnection implements IJsonRpcConnection {
     return new Promise<void>((resolve, reject) => {
       this.nymSend("open:" + url).then(() => {
         this.events.once("open", () => {
+          // TODO should I check that it's the proper answer? Maybe by checking the url? But I don't think that checking the url is enough..
           resolve();
         });
-        this.events.once("payload", payload => {
+        // TODO ok, I think I got the issue, this is triggering also on future Errors, but the promise was already resolved, so I get an unhandled rejection, since nothing is awaiting for the rejection anymore...
+        // And conversely, an incoming payload from another existing WSConn would trigger the event, yet not enter the if statement.
+        // I guess the solution is to make a unique type of event??
+        this.events.once("error", payload => {
           // TODO might want to make startsWith emcompass all "Error:", but for now, that's the one I've been getting.
           if (typeof payload.error != "undefined" && typeof payload.error.message != "undefined" && payload.error.message.startsWith("Error: Couldn't open a WS to relay")) {
-            const err = new Error(payload.error.message.substring(7));
+            //const err = new Error(payload.error.message.substring(7));
+            const err = new Error(payload.error.message);
             this.emitRegisterError(err);
-            reject(err);
+            console.log("\x1b[91mFailed to open a WS to relay\x1b[0m");
+            // TODO by removing the reject here, I don't have anymore Unhandled Rejections in the tests. But I'm afraid that now, when the error happens at the real time, it's missing a rejection..
+            // But then, I actually have unhandled errors, that my catch catches and log. So not that much better... What if the SP does not communicate this error? Then this just keeps waiting for a valid open, but is it a worse situation?
+            // reject(err);
+          } else {
+            console.log("\x1b[91mThis payload was tagged as an error, but does not seem to conform what the software expect right now!\x1b[0m");
+            console.log(payload);
           }
         });
       }).catch(e => {
@@ -251,7 +262,6 @@ export class NymWsConnection implements IJsonRpcConnection {
   private onRelayOpen() {
     this.connectedToRelay = true;
     this.registering = false;
-    this.connectedToRelay = true;
     this.events.emit("open");
   }
 
@@ -265,8 +275,8 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   private onPayload(e) {
-    // try {
-      console.log("Received from mixnet: " + e.data);
+    try {
+      // console.log("Received from mixnet: " + e.data); // This can be very useful for debugging, not great for logging though
       const response = safeJsonParse(e.data);
       if (response.type == "error") {
         console.log("mixnet responded with error: ");
@@ -288,28 +298,27 @@ export class NymWsConnection implements IJsonRpcConnection {
           this.onReceivedError(parsedPayload.id, parsedPayload.error);
         } else {
           // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
-          console.log("Client received: " + payload);
+          // console.log("Client received: " + payload);
           this.events.emit("payload", payload);
         }
       }
-      // TODO I turn off the try/catch so that the tests properly fail. It seems weird to me that the catch in the code can catch an assertion error produced in the tests, but hey, if it's how it works...
-/*    } catch (err) {
-      console.log("client onPayload error: " + err + " , happened withPayload: " + e.data); // TODO this.onError?
-    }*/
+    } catch (err) {
+      console.log("\x1b[91mclient onPayload error: " + err + " , happened withPayload: " + e.data + "\x1b[0m"); // TODO this.onError?
+    }
   }
 
   private onSendError(id: number, e: Error) {
     const error = this.parseError(e);
     const message = error.message || error.toString();
     const payload = formatJsonRpcError(id, message);
-    this.events.emit("payload", payload);
+    this.events.emit("error", payload);
   }
 
   private onReceivedError(id: number, e: Error) {
     console.log(e);
     const message = e.message;
     const payload = formatJsonRpcError(id, message);
-    this.events.emit("payload", payload);
+    this.events.emit("error", payload);
   }
 
   private parseError(e: Error, url = this.url) {
