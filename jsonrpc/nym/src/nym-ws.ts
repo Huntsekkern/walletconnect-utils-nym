@@ -21,7 +21,7 @@ const nymApiUrl = "https://validator.nymtech.net/api";
 const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 
 // TODO, this is hardcoded from one particular instance of a Nym client
-const serviceProviderDefaultAddress = "2t8NNyj6zw5qHkNi1KwJxoQPcGVbZ9kq6PLhmnTDxzex.FHeSidBHTpTsNjmyg7XdvZbcMHP5bdchTybcAtRE8d4@5EpkkrMFYAM3XcaztXnZwBWquURHSKsyc9JxUCengDFS";
+const serviceProviderDefaultAddress = "EwvY4QwFXs1n6MkpiKKH9WHgntnd9BPqmHNrKRfX3ufM.J9c8X9es2Z86hvS8CpsZKYTXkjQsRnmZEc3wbQNTBv7q@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW";
 
 
 export class NymWsConnection implements IJsonRpcConnection {
