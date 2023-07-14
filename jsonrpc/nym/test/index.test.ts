@@ -276,7 +276,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await SP.setup();
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
 
-      conn.on("payload",(payload: JsonRpcError) => {
+      conn.on("error",(payload: JsonRpcError) => {
         chai.expect(payload).to.not.be.a("undefined");
         chai.expect(payload.error.message).to.equal("Error: Couldn't open a WS to relay: Error: Unexpected server response: 400");
         console.log("Test passing");

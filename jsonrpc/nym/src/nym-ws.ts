@@ -185,7 +185,7 @@ export class NymWsConnection implements IJsonRpcConnection {
       await this.connectToMixnet();
     }
 
-    await this.requestOpenWSConn(this.url);
+    return await this.requestOpenWSConn(this.url);
   }
 
   private async connectToMixnet(): Promise<WebSocket> {
@@ -244,7 +244,7 @@ export class NymWsConnection implements IJsonRpcConnection {
             console.log("\x1b[91mFailed to open a WS to relay\x1b[0m");
             // TODO by removing the reject here, I don't have anymore Unhandled Rejections in the tests. But I'm afraid that now, when the error happens at the real time, it's missing a rejection..
             // But then, I actually have unhandled errors, that my catch catches and log. So not that much better... What if the SP does not communicate this error? Then this just keeps waiting for a valid open, but is it a worse situation?
-            // reject(err);
+            reject(err);
           } else {
             console.log("\x1b[91mThis payload was tagged as an error, but does not seem to conform what the software expect right now!\x1b[0m");
             console.log(payload);
