@@ -269,6 +269,16 @@ export class NymWsConnection implements IJsonRpcConnection {
     this.events.emit("close");
   }
 
+  // closeLocallyOnError kills the connection to the local Nym Client
+  private closeLocallyOnError() {
+    if (typeof this.mixnetWebsocketConnection !== "undefined") {
+      this.mixnetWebsocketConnection.close();
+      this.mixnetWebsocketConnection = undefined;
+    }
+    this.registering = false;
+    this.connectedToRelay = false;
+  }
+
   private onPayload(e) {
     try {
       // console.log("Received from mixnet: " + e.data); // This can be very useful for debugging, not great for logging though
@@ -306,6 +316,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     const error = this.parseError(e);
     const message = error.message || error.toString();
     const payload = formatJsonRpcError(id, message);
+    this.closeLocallyOnError();
     this.events.emit("error", payload);
   }
 
@@ -313,6 +324,7 @@ export class NymWsConnection implements IJsonRpcConnection {
     console.log(e);
     const message = e.message;
     const payload = formatJsonRpcError(id, message);
+    this.closeLocallyOnError();
     this.events.emit("error", payload);
   }
 
@@ -332,6 +344,7 @@ export class NymWsConnection implements IJsonRpcConnection {
             errorEvent?.message || `WebSocket connection failed for host: ${truncateQuery(this.url)}`,
         ),
     );
+    this.closeLocallyOnError();
     this.events.emit("register_error", error);
     return error;
   }
