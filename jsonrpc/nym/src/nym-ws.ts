@@ -9,6 +9,7 @@ import {
   isWsUrl,
   parseConnectionError,
 } from "@walletconnect/jsonrpc-utils";
+import { truncateQuery, resolveWebSocketImplementation, hasBuiltInWebSocket } from "./utils";
 
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
@@ -196,8 +197,7 @@ export class NymWsConnection implements IJsonRpcConnection {
       console.log("Websocket connection error on the user. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
       console.log(err);
       return new Promise((resolve, reject) => {
-        this.emitRegisterError(err.error);
-        reject(err);
+        reject(this.emitRegisterError(err.error));
       });
     });
 
@@ -205,8 +205,7 @@ export class NymWsConnection implements IJsonRpcConnection {
       const err = new Error("Oh no! Could not create client");
       console.error(err);
       return new Promise((resolve, reject) => {
-        this.emitRegisterError(err);
-        reject(err);
+        reject(this.emitRegisterError(err));
       });
     }
 
@@ -238,13 +237,10 @@ export class NymWsConnection implements IJsonRpcConnection {
         this.events.once("error", payload => {
           // TODO might want to make startsWith emcompass all "Error:", but for now, that's the one I've been getting.
           if (typeof payload.error != "undefined" && typeof payload.error.message != "undefined" && payload.error.message.startsWith("Error: Couldn't open a WS to relay")) {
-            //const err = new Error(payload.error.message.substring(7));
-            const err = new Error(payload.error.message);
-            this.emitRegisterError(err);
+            const err = new Error(payload.error.message.substring(7));
+            //const err = new Error(payload.error.message);
             console.log("\x1b[91mFailed to open a WS to relay\x1b[0m");
-            // TODO by removing the reject here, I don't have anymore Unhandled Rejections in the tests. But I'm afraid that now, when the error happens at the real time, it's missing a rejection..
-            // But then, I actually have unhandled errors, that my catch catches and log. So not that much better... What if the SP does not communicate this error? Then this just keeps waiting for a valid open, but is it a worse situation?
-            reject(err);
+            reject(this.emitRegisterError(err));
           } else {
             console.log("\x1b[91mThis payload was tagged as an error, but does not seem to conform what the software expect right now!\x1b[0m");
             console.log(payload);
@@ -252,8 +248,7 @@ export class NymWsConnection implements IJsonRpcConnection {
         });
       }).catch(e => {
         console.log("failed to send the request to open a WSConn: " || e);
-        this.emitRegisterError(e);
-        reject(e);
+        reject(this.emitRegisterError(e));
       });
     });
   }
@@ -322,7 +317,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   private parseError(e: Error, url = this.url) {
-    return parseConnectionError(e, url, "WS");
+    return parseConnectionError(e, truncateQuery(url), "WS");
   }
 
   private resetMaxListeners() {
@@ -333,7 +328,9 @@ export class NymWsConnection implements IJsonRpcConnection {
 
   private emitRegisterError(errorEvent: Error) {
     const error = this.parseError(
-      new Error(errorEvent?.message || `WebSocket connection failed for URL: ${this.url}`),
+        new Error(
+            errorEvent?.message || `WebSocket connection failed for host: ${truncateQuery(this.url)}`,
+        ),
     );
     this.events.emit("register_error", error);
     return error;
