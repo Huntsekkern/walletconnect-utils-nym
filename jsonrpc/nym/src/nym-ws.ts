@@ -234,7 +234,9 @@ export class NymWsConnection implements IJsonRpcConnection {
         // TODO ok, I think I got the issue, this is triggering also on future Errors, but the promise was already resolved, so I get an unhandled rejection, since nothing is awaiting for the rejection anymore...
         // And conversely, an incoming payload from another existing WSConn would trigger the event, yet not enter the if statement.
         // I guess the solution is to make a unique type of event??
-        this.events.once("error", payload => {
+        // TODO now, this is also not taking into account send error through the WS to the nym client, because I had to split the error types to match the event flow of vanilla-WC
+        // I have never got one yet, and vanilla-ws also dissociate send error from register error, well, I can't achieve perfection here I guess.
+        this.events.once("communication_error", payload => {
           // TODO might want to make startsWith emcompass all "Error:", but for now, that's the one I've been getting.
           if (typeof payload.error != "undefined" && typeof payload.error.message != "undefined" && payload.error.message.startsWith("Error: Couldn't open a WS to relay")) {
             const err = new Error(payload.error.message.substring(7));
@@ -304,7 +306,9 @@ export class NymWsConnection implements IJsonRpcConnection {
         } else {
           // This does the regular WC ws job, but with the payload of the nym message instead of the ws connection, but it should be just the same passed along.
           // console.log("Client received: " + payload);
-          this.events.emit("payload", payload);
+          // console.log("\x1b[91mEmit payload: " + "\x1b[0m");
+          // console.log(parsedPayload);
+          this.events.emit("payload", parsedPayload);
         }
       }
     } catch (err) {
@@ -325,7 +329,8 @@ export class NymWsConnection implements IJsonRpcConnection {
     const message = e.message;
     const payload = formatJsonRpcError(id, message);
     this.closeLocallyOnError();
-    this.events.emit("error", payload);
+    // communication_error is named as such to not clash with the WC event error
+    this.events.emit("communication_error", payload);
   }
 
   private parseError(e: Error, url = this.url) {
