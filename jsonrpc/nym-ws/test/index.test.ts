@@ -30,16 +30,8 @@ const RELAY_URL = "wss://staging.relay.walletconnect.com";
 
 /*
 Logic should be:
-Try to use the permanent staging wc relay, but create the wss connection from the
-nym-ws-service-provider.ts instead of ws.ts
-This is probably a useful reference: jsonrpc/ws-connection/test/index.test.ts
-
-Once this test works, the second step is to test both nym-ws and nym-ws-service-provider
+Test both nym-ws and nym-service-provider
 conjointly, but that implies already sending messages on the nym mixnet.
-To be fair, the first step also requires the mixnet because the way the ws-service-provider works is
-by starting and learning its mixnet address on start-up. So it's not that weird to have both in the same file anyway.
-
-Both of those batch of tests are done in this file because of JS/TS resolution issue.
  */
 
 // the actual issue was not the file name, but something happening in the second file, since now that they're merged here, I have the same error
@@ -98,124 +90,6 @@ function mockWcRpcPublish(): JsonRpcRequest {
     },
   };
 }
-
-const senderTag = "testerToSixteenAddMor"; // That's what Nym expects as tag length.
-
-describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
-  describe("init", () => {
-    it("initialises, requires Nym client to be running", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-      chai.expect(SP instanceof NymWsServiceProvider).to.be.true;
-
-      SP.terminateServiceProvider();
-    });
-  });
-
-  describe("open", () => {
-    it("can open a connection with a valid relay `wss:` URL", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-
-      SP.terminateServiceProvider();
-    });
-
-    it("rejects with an error if `wss:` URL is valid but connection cannot be made", async () => {
-      const auth = await signJWT(RELAY_URL);
-      const rpcUrlWithoutProjectId = formatRelayRpcUrl({
-        protocol: "wc",
-        version: 2,
-        sdkVersion: version,
-        relayUrl: RELAY_URL,
-        auth,
-      });
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-
-      await chai.expect(SP.openWStoRelay(rpcUrlWithoutProjectId, senderTag)).to.be.rejectedWith("Unexpected server response: 400");
-
-      SP.terminateServiceProvider();
-    });
-
-    it("can open a connection, then gracefully pretends to open a new connection while just reusing the same one", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-
-      SP.terminateServiceProvider();
-    });
-  });
-
-  describe("close", () => {
-    it("can open then close a connection", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-      await chai.expect(SP.closeWStoRelay(senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-
-      SP.terminateServiceProvider();
-    });
-
-    it("can not double close a connection, with correct error message", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-      let expectedError: Error | undefined;
-
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
-      await chai.expect(SP.closeWStoRelay(senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-
-      await chai.expect(SP.closeWStoRelay(senderTag)).to.be.rejectedWith("Connection already closed");
-
-      SP.terminateServiceProvider();
-    });
-  });
-
-  describe("forwardRPC", () => {
-    it("send a valid WC RPC", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-
-      const RPCpayload = mockWcRpcPublish();
-
-      const socket: WebSocket = SP.tagToWSConn.get(senderTag);
-      socket.onmessage = (e: MessageEvent) => {
-        chai.expect(e.data).to.not.be.a("undefined");
-        const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
-        console.log(payload);
-        chai.expect(payload.id).to.equal(RPCpayload.id);
-        chai.expect(payload.jsonrpc).to.equal("2.0");
-        chai.expect(payload.result).to.equal(true);
-      };
-
-      await chai.expect(SP.forwardRPCtoRelay(senderTag, RPCpayload)).to.be.fulfilled;
-
-      SP.terminateServiceProvider();
-
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 5000));
-    });
-  });
-});
-
-
 
 describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
   describe("init", () => {

@@ -9,7 +9,7 @@ module.exports = {
     path: path.resolve(__dirname, "dist", "umd"),
     filename: "[name].min.js",
     libraryTarget: "umd",
-    library: "NymWsConnection",
+    library: "NymWcSp",
     umdNamedDefine: true,
     globalObject: "this",
   },
