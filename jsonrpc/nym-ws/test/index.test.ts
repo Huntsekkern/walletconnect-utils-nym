@@ -10,7 +10,7 @@ import { version } from "@walletconnect/utils/package.json";
 import { fromString } from "uint8arrays/from-string";
 
 import NymWsConnection from "../src/nym-ws";
-import NymWsServiceProvider from "../src/nym-ws-service_provider";
+import NymWsServiceProvider from "../../nym-SP/src/nym-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
 import {
   JsonRpcError,

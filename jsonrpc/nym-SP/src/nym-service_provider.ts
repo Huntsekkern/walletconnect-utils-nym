@@ -14,7 +14,6 @@ import {
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
-// TODO: if the SP really ends up serving both WS and HTTP, then spin it in its own package. and delete the duplicata in nym-http
 
 // TODO
 const defaultRelayServerUrl = "wss://staging.relay.walletconnect.com";

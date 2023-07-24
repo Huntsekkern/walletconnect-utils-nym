@@ -1,27 +1,35 @@
 {
-  "name": "nym-run-wc-SP",
+  "name": "nym-wc-SP",
   "version": "1.0.0",
   "author": "Huntsekker",
   "license": "MIT",
-  "description": "To run the Nym Service provider acting as intermediary post-mixnet between the clients and the Relay Servers",
-  "main": "dist/run-nym-wc-SP.js",
-  "module": "dist/run-nym-wc-SP.js",
-  "browser": "dist/run-nym-wc-SP.js",
-  "types": "dist/run-nym-wc-SP.d.ts",
-  "unpkg": "dist/run-nym-wc-SP.min.js",
-  "type": "module",
+  "description": "Nym Service provider acting as intermediary post-mixnet between the clients and the Relay Servers",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "browser": "dist/esm/index.js",
+  "types": "dist/cjs/index.d.ts",
+  "unpkg": "dist/umd/index.min.js",
   "files": [
     "dist"
   ],
   "scripts": {
     "clean": "rm -rf dist",
     "build:pre": "run-s clean",
-    "build:esm": "npx tsc -p tsconfig.json",
-    "build": "run-s build:pre build:esm",
-    "lint": "eslint -c '../../.eslintrc' --fix './src/**/*.ts'"
+    "build:cjs": "npx tsc -p tsconfig.cjs.json",
+    "build:umd": "webpack",
+    "build:esm": "npx tsc -p tsconfig.esm.json",
+    "build": "run-s build:pre build:cjs build:esm build:umd",
+    "test": "env TS_NODE_PROJECT=\"tsconfig.cjs.json\" mocha --timeout 20000 --exit -r ts-node/register ./test/**/*.test.ts",
+    "lint": "eslint -c '../../.eslintrc' --fix './src/**/*.ts'",
+    "npm-publish:latest": "npm publish --access public --tag latest",
+    "npm-publish:canary": "npm publish --access public --tag canary",
+    "prepublishOnly": "npm run test && npm run build"
   },
   "dependencies": {
-    "nym-wc-SP": "1.0.0"
+    "@walletconnect/jsonrpc-utils": "^1.0.6",
+    "@walletconnect/safe-json": "^1.0.2",
+    "bidirectional-map": "^1.1.1",
+    "ws": "^7.5.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.12.1",
