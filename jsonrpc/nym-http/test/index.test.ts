@@ -25,7 +25,19 @@ chai.use(chaiAsPromised);
 
 const BASE16 = "base16";
 
-const RELAY_URL = "https://rpc.walletconnect.com/v1";
+const RPC_URL = "https://rpc.walletconnect.com/v1";
+
+const DEFAULT_HTTP_HEADERS = {
+  Accept: "application/json",
+  "Content-Type": "application/json",
+};
+
+const DEFAULT_HTTP_METHOD = "POST";
+
+const DEFAULT_FETCH_OPTS = {
+  headers: DEFAULT_HTTP_HEADERS,
+  method: DEFAULT_HTTP_METHOD,
+};
 
 
 /*
@@ -73,12 +85,12 @@ const signJWT = async (aud: string) => {
 };
 
 const formatRelayUrl = async () => {
-  const auth = await signJWT(RELAY_URL);
+  const auth = await signJWT(RPC_URL);
   return formatRelayRpcUrl({
     protocol: "wc",
     version: 2,
     sdkVersion: version,
-    relayUrl: RELAY_URL,
+    relayUrl: RPC_URL,
     projectId: "3cbaa32f8fbf3cdcc87d27ca1fa68069",
     auth,
   });
@@ -101,7 +113,7 @@ function mockWcRpcPublish(): JsonRpcRequest {
 
 const senderTag = "testerToSixteenAddMor"; // That's what Nym expects as tag length.
 
-describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
+/*describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   describe("init", () => {
     it("initialises, requires Nym client to be running", async () => {
       const SP = new NymWsServiceProvider();
@@ -112,14 +124,14 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
     });
   });
 
-  describe("open", () => {
-    it("can open a connection with a valid relay `wss:` URL", async () => {
+  describe("fe", () => {
+    it("can reach the RPC-node", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
 
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.not.exist;
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
-      chai.expect(SP.tagToWSConn.get(senderTag)).to.exist;
+      const body = safeJsonStringify(mockWcRpcPublish());
+
+      await chai.expect(SP.proxyFetch(senderTag, RPC_URL, body)).to.be.fulfilled;
 
       SP.terminateServiceProvider();
     });
@@ -127,13 +139,15 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
   });
 
 
-  describe("forwardRPC", () => {
-    it("send a valid WC RPC", async () => {
+  describe("fetch", () => {
+    it("fetch a valid answer", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      await chai.expect(SP.openWStoRelay(await formatRelayUrl(), senderTag)).to.be.fulfilled;
 
-      const RPCpayload = mockWcRpcPublish();
+      const body = safeJsonStringify(mockWcRpcPublish());
+
+      const res = await SP.proxyFetch(senderTag, RPC_URL, body);
+      const data = await res.json();
 
       const socket: WebSocket = SP.tagToWSConn.get(senderTag);
       socket.onmessage = (e: MessageEvent) => {
@@ -153,32 +167,43 @@ describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
       await new Promise(r => setTimeout(r, 5000));
     });
   });
-});
+});*/
 
 
 
 describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
   describe("init", () => {
-    it("does not initialise with an invalid `ws` string", async () => {
+    it("initialises SP, requires Nym client to be running", async () => {
+      const SP = new NymWsServiceProvider();
+      await SP.setup();
+      chai.expect(SP instanceof NymWsServiceProvider).to.be.true;
+
+      SP.terminateServiceProvider();
+    });
+    it("does not initialise with an invalid `http` string", async () => {
       chai
         .expect(() => new NymHttpConnection("invalid"))
-        .to.throw("Provided URL is not compatible with WebSocket connection: invalid");
+        .to.throw("Provided URL is not compatible with HTTP connection: invalid");
     });
-    it("initialises with a `ws:` string", async () => {
+/*    it("initialises with a `http:` string", async () => {
       const conn = new NymHttpConnection(await formatRelayUrl());
       chai.expect(conn instanceof NymHttpConnection).to.be.true;
-    });
-    it("initialises with a `wss:` string", async () => {
+    });*/
+    it("initialises with a `https:` string", async () => {
       const conn = new NymHttpConnection(await formatRelayUrl());
       chai.expect(conn instanceof NymHttpConnection).to.be.true;
     });
   });
 
-  describe("open", () => {
-    it("can open a connection with a valid relay `wss:` URL", async () => {
+  describe("fetch", () => {
+    it("can reach the RPC-node", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const conn = new NymWsConnection(await formatRelayUrl());
+      const conn = new NymHttpConnection(await formatRelayUrl());
+
+      const body = safeJsonStringify(mockWcRpcPublish());
+
+      await chai.expect(SP.proxyFetch(senderTag, RPC_URL, body)).to.be.fulfilled;
 
       conn.on("open",() => {
         chai.assert(true);
@@ -191,7 +216,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await chai.expect(conn.open()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.size).to.equal(1);
+      chai.expect(SP.tagToWSConn.size).to.equal(0);
 
       await conn.close();
       SP.terminateServiceProvider();
@@ -203,10 +228,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // // eslint-disable-next-line promise/param-names
       // await new Promise(r => setTimeout(r, 3000));
     });
-  });
 
-  describe("forwardRPC", () => {
-    it("send a valid WC RPC", async () => {
+    it("fetch a valid answer", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
       const conn = new NymHttpConnection(await formatRelayUrl());
@@ -244,9 +267,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // await new Promise(r => setTimeout(r, 3000));
     });
 
-    // I think this test has a chance to fail, even though it passes most of the time.
-    // I mean, all tests have a chance to fail, if the staging relay server or the mixnet are down for an instant.
-    // But this one is more susceptible.
+
     // Also, this is the only test of the test suite which requires to run 4 nym clients...
     /*
     ./nym/target/release/nym-client run --id wc-test-client2 -p 1977
@@ -255,12 +276,12 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     ./nym/target/release/nym-client run --id wc-test-client79 -p 1979
     ./nym/target/release/nym-client run --id wc-test-client80 -p 1980
      */
-    it("send valid WC RPCs from 3 different users", async () => {
+    it("fetch a valid answer from 3 different users", async () => {
       const SP = new NymWsServiceProvider();
       await SP.setup();
-      const conn1 = new NymHttpConnection(await formatRelayUrl(), "1977");
-      const conn2 = new NymHttpConnection(await formatRelayUrl(), "1979");
-      const conn3 = new NymHttpConnection(await formatRelayUrl(), "1980");
+      const conn1 = new NymHttpConnection(await formatRelayUrl(), false, "1977");
+      const conn2 = new NymHttpConnection(await formatRelayUrl(), false, "1979");
+      const conn3 = new NymHttpConnection(await formatRelayUrl(), false, "1980");
 
       conn1.once("open",() => {
         chai.assert(true);
