@@ -14,8 +14,22 @@ import {
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
+// TODO: if the SP really ends up serving both WS and HTTP, then spin it in its own package. and delete the duplicata in nym-http
+
 // TODO
 const defaultRelayServerUrl = "wss://staging.relay.walletconnect.com";
+
+const DEFAULT_HTTP_HEADERS = {
+  Accept: "application/json",
+  "Content-Type": "application/json",
+};
+
+const DEFAULT_HTTP_METHOD = "POST";
+
+const DEFAULT_FETCH_OPTS = {
+  headers: DEFAULT_HTTP_HEADERS,
+  method: DEFAULT_HTTP_METHOD,
+};
 
 // TODO nearly everything but setup can be private here as they are mostly triggered by incoming messages
 // But for unit-testing I made some part public, take into account and could reswitch to private later.
@@ -72,7 +86,11 @@ export class NymWsServiceProvider {
     const senderTag = response.senderTag;
     const message = response.message;
 
-    if (message.startsWith("open")) {
+    if (message.startsWith("http")) {
+      // TODO extract my symbol as a constant;
+      const urlMessage = message.split(":::::");
+      await this.proxyFetch(senderTag, urlMessage[0], urlMessage[1]);
+    } else if (message.startsWith("open")) {
       // extract the url from the payload which pattern should be open:url
       const url = message.substring(5);
       await this.openWStoRelay(url, senderTag);
@@ -86,6 +104,12 @@ export class NymWsServiceProvider {
         console.log("payload is not jsonrpc: " + messageInJson);
       }
     }
+  }
+
+  public async proxyFetch(senderTag: string, url: string, body: string): Promise<void> {
+    const res = await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
+    const data = await res.json();
+    this.sendMessageToMixnet(safeJsonStringify(data), senderTag);
   }
 
 // openWStoRelay opens a new WebSocket connection to a specified url for a given senderTag.
