@@ -126,7 +126,7 @@ export class NymWsServiceProvider {
         // But for now, it doesn't seem necessary, so let's just tell the user: yes, the connection is open.
         // By doing that, I also don't allow the user to change relays without closing the connection first. It's fine.
         this.sendMessageToMixnet("opened", senderTag);
-        resolve(this.tagToWSConn.get(senderTag));
+          return resolve(this.tagToWSConn.get(senderTag));
       }
 
       const opts = !isReactNative() ? { rejectUnauthorized: !isLocalhostUrl(url) } : undefined;
@@ -153,14 +153,15 @@ export class NymWsServiceProvider {
       if (typeof socket === "undefined") {
         // Tell the user that the connection is closed to allow it to shutdown.
         // In fact the connection was already closed, but the user do not need the distinction.
-        this.sendMessageToMixnet("closed", senderTag);
+          // TODO this is one of the many messy situations: it is tempting to tell the user "closed" to take care of cases where a message may get dropped, etc. But since the user reacts automatically to "closed" message, it can also causes confusion. Especially within tests which open and shutdown multiple connections
+       // this.sendMessageToMixnet("closed", senderTag);
         reject(new Error("Connection already closed"));
         return;
       }
 
-      socket.onclose = event => {
-        this.onClose(event, socket, senderTag);
-        resolve();
+      socket.onclose = () => {
+          this.onClose(socket, senderTag);
+          resolve();
       };
 
       socket.close();
@@ -195,13 +196,13 @@ export class NymWsServiceProvider {
   private onOpen(socket: WebSocket, senderTag: string) {
     this.tagToWSConn.set(senderTag, socket);
     socket.onmessage = (event: MessageEvent) => this.onPayload(senderTag, event);
-    socket.onclose = event => this.onClose(event, socket, senderTag);
+    socket.onclose = () => this.onClose(socket, senderTag);
     this.sendMessageToMixnet("opened", senderTag);
   }
 
 // onClose is called when a mixnet user request to closes its WS connection
 // OR when the relay-server sends a close message to the WS.
-  private onClose(event: CloseEvent, socket: WebSocket, senderTag: string) {
+  private onClose(socket: WebSocket, senderTag: string) {
     console.log("Closing the Relay WS connection for " + senderTag);
     this.sendMessageToMixnet("closed", senderTag);
     this.tagToWSConn.delete(senderTag);
@@ -265,9 +266,8 @@ export class NymWsServiceProvider {
       console.log("serviceProvider not running already");
     } else {
       this.tagToWSConn.forEach((WSConn, senderTag) => {
-        this.closeWStoRelay(senderTag).then(() => {
-          console.log(senderTag + " conn closed");
-        });
+        WSConn.close();
+        console.log(senderTag + " conn closed");
       });
       this.mixnetWebsocketConnection.close();
     }

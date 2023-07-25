@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import "mocha";
+import WebSocket, { MessageEvent } from "ws";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 import * as relayAuth from "@walletconnect/relay-auth";

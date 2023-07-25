@@ -150,15 +150,14 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await SP.setup();
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
 
-      conn.on("error",(payload: JsonRpcError) => {
-        chai.expect(payload).to.not.be.a("undefined");
-        chai.expect(payload.error.message).to.equal("Error: Couldn't open a WS to relay: Error: Unexpected server response: 400");
+      conn.on("register_error",(payload: Error) => {
+        chai.expect(payload.message).to.not.be.a("undefined");
+        chai.expect(payload.message).to.equal("Couldn't open a WS to relay: Error: Unexpected server response: 400");
         console.log("Test passing");
       });
 
       await chai.expect(conn.open()).to.be.rejected;
 
-      await conn.close();
       SP.terminateServiceProvider();
 
       // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.

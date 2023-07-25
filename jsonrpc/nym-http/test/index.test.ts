@@ -42,16 +42,7 @@ const DEFAULT_FETCH_OPTS = {
 
 /*
 Logic should be:
-Try to use the permanent staging wc relay, but create the wss connection from the
-nym-ws-service-provider.ts instead of ws.ts
-This is probably a useful reference: jsonrpc/ws-connection/test/index.test.ts
-
-Once this test works, the second step is to test both nym-ws and nym-ws-service-provider
-conjointly, but that implies already sending messages on the nym mixnet.
-To be fair, the first step also requires the mixnet because the way the ws-service-provider works is
-by starting and learning its mixnet address on start-up. So it's not that weird to have both in the same file anyway.
-
-Both of those batch of tests are done in this file because of JS/TS resolution issue.
+Test the nym-http-connection, through the mixnet, through the SP, to the node.
  */
 
 // the actual issue was not the file name, but something happening in the second file, since now that they're merged here, I have the same error
@@ -112,63 +103,6 @@ function mockWcRpcPublish(): JsonRpcRequest {
 }
 
 const senderTag = "testerToSixteenAddMor"; // That's what Nym expects as tag length.
-
-/*describe("@walletconnect/nym-jsonrpc-ws-service-provider", () => {
-  describe("init", () => {
-    it("initialises, requires Nym client to be running", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-      chai.expect(SP instanceof NymWsServiceProvider).to.be.true;
-
-      SP.terminateServiceProvider();
-    });
-  });
-
-  describe("fe", () => {
-    it("can reach the RPC-node", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-
-      const body = safeJsonStringify(mockWcRpcPublish());
-
-      await chai.expect(SP.proxyFetch(senderTag, RPC_URL, body)).to.be.fulfilled;
-
-      SP.terminateServiceProvider();
-    });
-
-  });
-
-
-  describe("fetch", () => {
-    it("fetch a valid answer", async () => {
-      const SP = new NymWsServiceProvider();
-      await SP.setup();
-
-      const body = safeJsonStringify(mockWcRpcPublish());
-
-      const res = await SP.proxyFetch(senderTag, RPC_URL, body);
-      const data = await res.json();
-
-      const socket: WebSocket = SP.tagToWSConn.get(senderTag);
-      socket.onmessage = (e: MessageEvent) => {
-        chai.expect(e.data).to.not.be.a("undefined");
-        const payload: JsonRpcResult = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
-        console.log(payload);
-        chai.expect(payload.id).to.equal(RPCpayload.id);
-        chai.expect(payload.jsonrpc).to.equal("2.0");
-        chai.expect(payload.result).to.equal(true);
-      };
-
-      await chai.expect(SP.forwardRPCtoRelay(senderTag, RPCpayload)).to.be.fulfilled;
-
-      SP.terminateServiceProvider();
-
-      // eslint-disable-next-line promise/param-names
-      await new Promise(r => setTimeout(r, 5000));
-    });
-  });
-});*/
-
 
 
 describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
