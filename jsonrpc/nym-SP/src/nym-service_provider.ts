@@ -30,6 +30,8 @@ const DEFAULT_FETCH_OPTS = {
   method: DEFAULT_HTTP_METHOD,
 };
 
+const separator = ":::::";
+
 // TODO nearly everything but setup can be private here as they are mostly triggered by incoming messages
 // But for unit-testing I made some part public, take into account and could reswitch to private later.
 export class NymWsServiceProvider {
@@ -86,14 +88,14 @@ export class NymWsServiceProvider {
     const message = response.message;
 
     if (message.startsWith("http")) {
-      // TODO extract my symbol as a constant;
-      const urlMessage = message.split(":::::");
-      await this.proxyFetch(senderTag, urlMessage[0], urlMessage[1]);
+      const urlMessageUid = message.split(separator);
+      await this.proxyFetch(senderTag, urlMessageUid[0], urlMessageUid[1], urlMessageUid[2]);
     } else if (message.startsWith("open")) {
       // extract the url from the payload which pattern should be open:url
       const url = message.substring(5);
       await this.openWStoRelay(url, senderTag);
     } else if (message == "close") {
+      console.log("SP received close request from client");
       await this.closeWStoRelay(senderTag);
     } else { // Then the message is a JSONRPC to be passed to the relay server
       const messageInJson = safeJsonParse(message);
@@ -105,10 +107,10 @@ export class NymWsServiceProvider {
     }
   }
 
-  public async proxyFetch(senderTag: string, url: string, body: string): Promise<void> {
+  public async proxyFetch(senderTag: string, url: string, body: string, UID: string): Promise<void> {
     const res = await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
     const data = await res.json();
-    this.sendMessageToMixnet(safeJsonStringify(data), senderTag);
+    this.sendMessageToMixnet(safeJsonStringify(UID + separator + safeJsonStringify(data)), senderTag);
   }
 
 // openWStoRelay opens a new WebSocket connection to a specified url for a given senderTag.
@@ -125,6 +127,7 @@ export class NymWsServiceProvider {
         // The socket already exists. A more advanced version could let the user open connections to several relays...
         // But for now, it doesn't seem necessary, so let's just tell the user: yes, the connection is open.
         // By doing that, I also don't allow the user to change relays without closing the connection first. It's fine.
+          console.log("socket already existing, no need to open");
         this.sendMessageToMixnet("opened", senderTag);
           return resolve(this.tagToWSConn.get(senderTag));
       }
@@ -147,6 +150,7 @@ export class NymWsServiceProvider {
 
 // closeWStoRelay closes a WebSocket connection identified by the given senderTag.
   public async closeWStoRelay(senderTag: string): Promise<void> {
+    console.log("closeWStoRelay");
     return new Promise<void>((resolve, reject) => {
       const socket: WebSocket = this.tagToWSConn.get(senderTag);
 
@@ -194,6 +198,7 @@ export class NymWsServiceProvider {
 
 // onOpen is called when a new WS to a relay-server is created on request from a mixnet user.
   private onOpen(socket: WebSocket, senderTag: string) {
+      console.log("on open");
     this.tagToWSConn.set(senderTag, socket);
     socket.onmessage = (event: MessageEvent) => this.onPayload(senderTag, event);
     socket.onclose = () => this.onClose(socket, senderTag);

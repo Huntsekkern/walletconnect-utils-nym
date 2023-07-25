@@ -10,6 +10,8 @@ import {
   isHttpUrl,
   parseConnectionError,
 } from "@walletconnect/jsonrpc-utils";
+import { toString } from "uint8arrays";
+import { randomBytes } from "@stablelib/random";
 
 const DEFAULT_HTTP_HEADERS = {
   Accept: "application/json",
@@ -22,6 +24,10 @@ const DEFAULT_FETCH_OPTS = {
   headers: DEFAULT_HTTP_HEADERS,
   method: DEFAULT_HTTP_METHOD,
 };
+
+const BASE16 = "base16";
+
+const separator = ":::::";
 
 // Source: https://nodejs.org/api/events.html#emittersetmaxlistenersn
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
@@ -37,20 +43,18 @@ export class NymHttpConnection implements IJsonRpcConnection {
 
   private registering = false;
 
-  private port = "1977";
-  private localClientUrl = "ws://127.0.0.1:" + this.port;
-  private mixnetWebsocketConnection: WebSocket | any;
+  private sharedMixnetWebsocketConnection: WebSocket | any;
   private ourAddress: string | undefined;
 
-  constructor(public url: string, public disableProviderPing = false, localClientPort = "1977") {
+  constructor(public url: string, public disableProviderPing = false, sharedMixnetWebsocketConnection: WebSocket) {
+    console.log("NEW NYM HTTP for " + url + " with disableping = " + disableProviderPing);
     if (!isHttpUrl(url)) {
       throw new Error(`Provided URL is not compatible with HTTP connection: ${url}`);
     }
     this.url = url;
     this.disableProviderPing = disableProviderPing;
-
-    this.port = localClientPort;
-    this.localClientUrl = "ws://127.0.0.1:" + this.port;
+    this.sharedMixnetWebsocketConnection = sharedMixnetWebsocketConnection;
+    this.sendSelfAddressRequest();
   }
 
   get connected(): boolean {
@@ -89,6 +93,7 @@ export class NymHttpConnection implements IJsonRpcConnection {
   }
 
   public async send(payload: JsonRpcPayload, context?: any): Promise<void> {
+    console.log("NYM HTTP send this payload: " + payload);
     if (!this.isAvailable) {
       await this.register();
     }
@@ -113,16 +118,17 @@ export class NymHttpConnection implements IJsonRpcConnection {
   // ---------- Private ----------------------------------------------- //
 
   private async nymFetch(payload: string): Promise<Response> {
-    // This must NOT block if the relay connection is not established, as it may send open requests as well.
-    if (typeof this.mixnetWebsocketConnection === "undefined") {
-      await this.register();
+    if (typeof this.sharedMixnetWebsocketConnection === "undefined") {
+      throw new Error("Shared mixnet connection for all http connection is undefined");
     }
 
     const recipient = serviceProviderDefaultAddress;
     const SURBsGiven = 5;
 
+    const UID = this.generateRandomBytes32();
+
     // TODO this is a security flaw waiting to happen right? make a url with ::::: and you break the system. Even a payload with ::::: could become dangerous?
-    const body = this.url + ":::::" + payload;
+    const body = this.url + separator + payload + separator + UID;
     /*const res = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
 
 *
@@ -136,19 +142,31 @@ const data = await res.json();
       replySurbs: SURBsGiven,
     };
 
+    // TODO Doesn't that becomes a state explosion of listeners? probably... Should try to remove the listener after the UID is validated?
+    this.sharedMixnetWebsocketConnection.onmessage = (e: any) => {
+      this.onMixnetPayload(e, UID);
+    };
+
     // Send our message object out via our websocket connection.
-    this.mixnetWebsocketConnection.send(safeJsonStringify(message));
+    this.sharedMixnetWebsocketConnection.send(safeJsonStringify(message));
 
-    return new Promise(( resolve ) => {
-
+    return new Promise(( resolve, reject ) => {
       this.once("mixnetPayload", purePayload => {
         resolve(purePayload);
       });
     });
+  }
 
+  private generateRandomBytes32(): string {
+    const random = randomBytes(32);
+    return toString(random, BASE16);
   }
 
   private async register(url = this.url): Promise<void> {
+    console.log("NYM HTTP REGISTER");
+    if (typeof this.sharedMixnetWebsocketConnection === "undefined") {
+      throw new Error("Shared mixnet connection for all http connection is undefined");
+    }
     if (!isHttpUrl(url)) {
       throw new Error(`Provided URL is not compatible with HTTP connection: ${url}`);
     }
@@ -180,10 +198,6 @@ const data = await res.json();
     this.url = url;
     this.registering = true;
 
-    if (typeof this.mixnetWebsocketConnection === "undefined") {
-      await this.connectToMixnet();
-    }
-
     try {
       if (!this.disableProviderPing) {
         const body = safeJsonStringify({ id: 1, jsonrpc: "2.0", method: "test", params: [] });
@@ -199,37 +213,6 @@ const data = await res.json();
     }
   }
 
-  private async connectToMixnet(): Promise<WebSocket> {
-    // Set up and handle websocket connection to our desktop client.
-    this.mixnetWebsocketConnection = await this.connectWebsocket(this.localClientUrl).then(function (c) {
-      return c;
-    }).catch((err) => {
-      console.log("Websocket connection error on the user. Is the client running with <pre>--connection-type WebSocket</pre> on port " + this.port + "?");
-      console.log(err);
-      this.events.emit("register_error", err.error);
-      return new Promise((resolve, reject) => {
-        reject(err.error);
-      });
-    });
-
-    if (!this.mixnetWebsocketConnection) {
-      const err = new Error("Oh no! Could not create client");
-      console.error(err);
-      return new Promise((resolve, reject) => {
-        reject(err);
-      });
-    }
-
-    this.mixnetWebsocketConnection.onmessage = (e: any) => {
-      this.onMixnetPayload(e);
-    };
-
-    this.sendSelfAddressRequest();
-
-    return new Promise((resolve) => {
-      resolve(this.mixnetWebsocketConnection);
-    });
-  }
 
   private onOpen() {
     this.isAvailable = true;
@@ -244,7 +227,7 @@ const data = await res.json();
   }
 
   // unwrap and emit a new type of event to trigger nymFetch, so that it resolves (and potentially call onPayload from nymFetch)
-  private onMixnetPayload(mixnetPayload) {
+  private onMixnetPayload(mixnetPayload, UID: string) {
     try {
       // console.log("Received from mixnet: " + e.data); // This can be very useful for debugging, not great for logging though
       const response = safeJsonParse(mixnetPayload.data);
@@ -257,12 +240,12 @@ const data = await res.json();
         console.log("Our address is:  " + this.ourAddress);
       } else if (response.type == "received") {
         const payload: string = response.message;
-        const parsedPayload = safeJsonParse(payload);
-          // console.log("Client received: " + payload);
-          // console.log("\x1b[91mEmit payload: " + "\x1b[0m");
-          // console.log(parsedPayload);
-        const purePayload = parsedPayload as Response; // TODO
-        this.events.emit("mixnetPayload", purePayload);
+        const uidMessage = payload.split(separator);
+        if (UID === uidMessage[0]) {
+          const parsedPayload = safeJsonParse(uidMessage[1]);
+          const purePayload = parsedPayload as Response; // TODO
+          this.events.emit("mixnetPayload", purePayload);
+        }
       }
     } catch (err) {
       console.log("\x1b[91mclient onMixnetPayload error: " + err + " , happened with http Payload: " + mixnetPayload.data + "\x1b[0m"); // TODO this.onError?
@@ -300,34 +283,9 @@ const data = await res.json();
     const selfAddress = {
       type: "selfAddress",
     };
-    this.mixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
+    this.sharedMixnetWebsocketConnection.send(safeJsonStringify(selfAddress));
   }
 
-  // Function that connects our application to the mixnet Websocket. We want to call this when registering.
-  private connectWebsocket(url: string): Promise<void> {
-    return new Promise(function (resolve, reject) {
-      const server = new WebSocket(url);
-      console.log("user connecting to Mixnet Websocket (Nym Client)...");
-      server.onopen = function () {
-        resolve(server);
-      };
-      server.onerror = function (err) {
-        reject(err);
-      };
-
-    });
-  }
-
-  public terminateClient() {
-    if (typeof this.mixnetWebsocketConnection === "undefined") {
-      console.log("terminateClient not executed: client not running already");
-    } else {
-      this.mixnetWebsocketConnection.close();
-      this.mixnetWebsocketConnection = undefined;
-    }
-    this.isAvailable = false;
-    this.registering = false;
-  }
 }
 
 export default NymHttpConnection;

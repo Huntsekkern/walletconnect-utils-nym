@@ -82,6 +82,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   // close tells the SP to close the connection to the relay server.
   // The user then expects the confirmation from the SP to fully disconnect from the local Nym client
   public async close(): Promise<void> {
+    console.log("Provider requests close to client");
     return new Promise<void>((resolve, reject) => {
       // Mixnet already shut down
       if (typeof this.mixnetWebsocketConnection === "undefined") {
@@ -91,6 +92,7 @@ export class NymWsConnection implements IJsonRpcConnection {
 
       // Relay shut down but not the mixnet, then finish the local shutting down.
       if (!this.connectedToRelay) {
+        console.log("But not currently connected");
         this.onRelayClose();
         resolve();
         return;
@@ -98,11 +100,13 @@ export class NymWsConnection implements IJsonRpcConnection {
 
       // Else this match my mini-protocol as a close order for the SP, then waits for the confirmation to resolve.
       this.nymSend("close").then(() => {
+        console.log("Client requests close to SP");
         // By calling this.onRelayClose() right here, I would not be waiting for the SP confirming the closure.
         // Instead, I now properly wait for the SP answer to close the socket.
         // This comes with advantage and disadvantages I guess? Make sure that incoming messages are waited for.
         // But also might fail to close if the reply is lost.
         this.events.once("close", () => {
+          console.log("Close event captured on client");
           resolve();
         });
       }).catch(e => {
@@ -259,20 +263,24 @@ export class NymWsConnection implements IJsonRpcConnection {
   private onRelayOpen() {
     this.connectedToRelay = true;
     this.registering = false;
+    console.log("\x1b[91mEmit open" + "\x1b[0m");
     this.events.emit("open");
   }
 
   // onRelayClose kills the connection to the local Nym Client
   private onRelayClose() {
+    console.log("onRelayClose");
     this.mixnetWebsocketConnection.close();
     this.mixnetWebsocketConnection = undefined;
     this.registering = false;
     this.connectedToRelay = false;
+    console.log("\x1b[91mEmit close" + "\x1b[0m");
     this.events.emit("close");
   }
 
   // closeLocallyOnError kills the connection to the local Nym Client
   private closeLocallyOnError() {
+    console.log("closeLocallyOnError");
     if (typeof this.mixnetWebsocketConnection !== "undefined") {
       this.mixnetWebsocketConnection.close();
       this.mixnetWebsocketConnection = undefined;
@@ -321,6 +329,8 @@ export class NymWsConnection implements IJsonRpcConnection {
     const message = error.message || error.toString();
     const payload = formatJsonRpcError(id, message);
     this.closeLocallyOnError();
+    console.log("\x1b[91mEmit payload (error): " + "\x1b[0m");
+    console.log(payload);
     this.events.emit("error", payload);
   }
 
@@ -350,6 +360,7 @@ export class NymWsConnection implements IJsonRpcConnection {
         ),
     );
     this.closeLocallyOnError();
+    console.log("\x1b[91mEmit register_error" + "\x1b[0m");
     this.events.emit("register_error", error);
     return error;
   }
