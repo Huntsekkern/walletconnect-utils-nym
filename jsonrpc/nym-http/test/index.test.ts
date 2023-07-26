@@ -30,7 +30,9 @@ const BASE16 = "base16";
 
 const BASIC_RPC_URL = "http://localhost:8545";
 // const RPC_URL = "https://rpc.walletconnect.com/v1";
-const FULL_RPC_URL = "https://rpc.walletconnect.com/v1?chainId=eip155:NaN&projectId=c03b16589879d4baec1782274cba4ff5";
+// const FULL_RPC_URL = "https://rpc.walletconnect.com/v1?chainId=eip155:NaN&projectId=c03b16589879d4baec1782274cba4ff5";
+const FULL_RPC_URL = "https://rpc.ankr.com/eth";
+// This is an external ETH provider, but hey, it answers better than the rpc of walletconnect.
 
 const DEFAULT_HTTP_HEADERS = {
   Accept: "application/json",
@@ -59,11 +61,9 @@ Test the nym-http-connection, through the mixnet, through the SP, to the node.
 // the Nym client of the SP I'm spinning in the tests must match the SP Nym Address given as default in nym-ws
 
 /*
-./nym/target/release/nym-client run --id wc-test-client2 -p 1977
-./nym/target/release/nym-client run --id sp-test-client2 -p 1978
-+ for the last test
-./nym/target/release/nym-client run --id wc-test-client79 -p 1979
-./nym/target/release/nym-client run --id wc-test-client80 -p 1980
+    ./nym/target/release/nym-client run --id wc-test-client2 -p 1977
+    ./nym/target/release/nym-client run --id sp-test-client2 -p 1978
+    ./nym/target/release/nym-client run --id http-test-client1 -p 1990
  */
 
 function generateRandomBytes32(): string {
@@ -71,14 +71,14 @@ function generateRandomBytes32(): string {
   return toString(random, BASE16);
 }
 
-const signJWT = async (aud: string) => {
+/*const signJWT = async (aud: string) => {
   const keyPair = relayAuth.generateKeyPair(fromString(generateRandomBytes32(), BASE16));
   const sub = generateRandomBytes32();
   const ttl = 5000; //5 seconds
   const jwt = await relayAuth.signJWT(sub, aud, ttl, keyPair);
 
   return jwt;
-};
+};*/
 
 /*const formatRelayUrl = async () => {
   const auth = await signJWT(RPC_URL);
@@ -276,7 +276,7 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
       conn.on("payload",payload => {
         chai.assert(true);
         chai.expect(payload).to.deep.equal(dataVanilla);
-        chai.expect(payload.status).to.not.equal("FAILED"); // TODO
+        chai.expect(payload.status).to.not.equal("FAILED");
         console.log("Test passing");
       });
 
@@ -305,7 +305,7 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
       conn.on("payload",payload => {
         chai.assert(true);
         chai.expect(payload).to.deep.equal(dataVanilla);
-        chai.expect(payload.status).to.not.equal("FAILED"); // TODO
+        chai.expect(payload.status).to.not.equal("FAILED");
         console.log("Test passing");
       });
 
@@ -316,83 +316,80 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
       SP.terminateServiceProvider();
     });
 
-    /*
-        // Also, this is the only test of the test suite which requires to run 4 nym clients...
-        /!*
-        ./nym/target/release/nym-client run --id wc-test-client2 -p 1977
-        ./nym/target/release/nym-client run --id sp-test-client2 -p 1978
-        as usual +
-        ./nym/target/release/nym-client run --id wc-test-client79 -p 1979
-        ./nym/target/release/nym-client run --id wc-test-client80 -p 1980
-         *!/
-        it("fetch a valid answer from 3 different users", async () => {
-          const SP = new NymServiceProvider();
-          await SP.setup();
-          const conn1 = new NymHttpConnection(await formatRelayUrl(), false, sharedMixnetWebsocketConnection);
-          const conn2 = new NymHttpConnection(await formatRelayUrl(), false, sharedMixnetWebsocketConnection);
-          const conn3 = new NymHttpConnection(await formatRelayUrl(), false, sharedMixnetWebsocketConnection);
+    it("fetch a valid answer from 3 different connections", async () => {
+      const SP = new NymServiceProvider();
+      await SP.setup();
+      const sharedMixnetWebsocketConnection = await connectToMixnet();
+      const url = FULL_RPC_URL;
 
-          conn1.once("open",() => {
-            chai.assert(true);
-          });
-          conn2.once("open",() => {
-            chai.assert(true);
-          });
-          conn3.once("open",() => {
-            chai.assert(true);
-          });
+      const conn1 = new NymHttpConnection(url, false, sharedMixnetWebsocketConnection);
+      const conn2 = new NymHttpConnection(url, false, sharedMixnetWebsocketConnection);
+      const conn3 = new NymHttpConnection(url, false, sharedMixnetWebsocketConnection);
 
-          const RPCpayload1 = mockWcRpcPublish();
-          const RPCpayload2 = mockWcRpcPublish();
-          const RPCpayload3 = mockWcRpcPublish();
-
-          await chai.expect(conn1.open()).to.be.fulfilled;
-          await chai.expect(conn2.open()).to.be.fulfilled;
-          await chai.expect(conn3.open()).to.be.fulfilled;
-
-          conn1.once("payload",(payload: string) => {
-            chai.expect(payload).to.not.be.a("undefined");
-            const parsedPayload = safeJsonParse(payload);
-            chai.expect(parsedPayload.id).to.equal(RPCpayload1.id);
-            chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
-            chai.expect(parsedPayload.result).to.equal(true);
-            console.log("Test passing for 1");
-          });
-          conn2.once("payload",(payload: string) => {
-            chai.expect(payload).to.not.be.a("undefined");
-            const parsedPayload = safeJsonParse(payload);
-            chai.expect(parsedPayload.id).to.equal(RPCpayload2.id);
-            chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
-            chai.expect(parsedPayload.result).to.equal(true);
-            console.log("Test passing for 2");
-          });
-          conn3.once("payload",(payload: string) => {
-            chai.expect(payload).to.not.be.a("undefined");
-            const parsedPayload = safeJsonParse(payload);
-            chai.expect(parsedPayload.id).to.equal(RPCpayload3.id);
-            chai.expect(parsedPayload.jsonrpc).to.equal("2.0");
-            chai.expect(parsedPayload.result).to.equal(true);
-            console.log("Test passing for 3");
-          });
-
-          await chai.expect(conn1.send(RPCpayload1)).to.be.fulfilled;
-          await chai.expect(conn2.send(RPCpayload2)).to.be.fulfilled;
-          await chai.expect(conn3.send(RPCpayload3)).to.be.fulfilled;
-
-          // eslint-disable-next-line promise/param-names
-          await new Promise(r => setTimeout(r, 3000));
-
-
-          await conn1.close();
-          await conn2.close();
-          await conn3.close();
-          // conn1.terminateClient();
-          // conn2.terminateClient();
-          // conn3.terminateClient();
-          SP.terminateServiceProvider();
-
-          // eslint-disable-next-line promise/param-names
-          // await new Promise(r => setTimeout(r, 3000));
-        });*/
+      conn1.once("open",() => {
+        chai.assert(true);
       });
+      conn2.once("open",() => {
+        chai.assert(true);
+      });
+      conn3.once("open",() => {
+        chai.assert(true);
+      });
+
+      await chai.expect(conn1.open()).to.be.fulfilled;
+      await chai.expect(conn2.open()).to.be.fulfilled;
+      await chai.expect(conn3.open()).to.be.fulfilled;
+
+
+
+      const RPCpayload1 = mockGasPrice();
+      const RPCpayload2 = mockGasPrice();
+      const RPCpayload3 = mockBlockByNumber();
+
+      let body = safeJsonStringify(RPCpayload1);
+      const resVanilla1 = await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
+      const dataVanilla1 = await resVanilla1.json();
+
+      body = safeJsonStringify(RPCpayload2);
+      const resVanilla2 = await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
+      const dataVanilla2 = await resVanilla2.json();
+
+      body = safeJsonStringify(RPCpayload3);
+      const resVanilla3 = await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
+      const dataVanilla3 = await resVanilla3.json();
+
+      conn1.once("payload",(payload) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload).to.deep.equal(dataVanilla1);
+        chai.expect(payload.status).to.not.equal("FAILED");
+        console.log("Test passing for 1");
+      });
+      conn2.once("payload",(payload) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload).to.deep.equal(dataVanilla2);
+        chai.expect(payload.status).to.not.equal("FAILED");
+        console.log("Test passing for 2");
+      });
+      conn3.once("payload",(payload) => {
+        chai.expect(payload).to.not.be.a("undefined");
+        chai.expect(payload).to.deep.equal(dataVanilla3);
+        chai.expect(payload.status).to.not.equal("FAILED");
+        console.log("Test passing for 3");
+      });
+
+      await chai.expect(conn1.send(RPCpayload1)).to.be.fulfilled;
+      await chai.expect(conn2.send(RPCpayload2)).to.be.fulfilled;
+      await chai.expect(conn3.send(RPCpayload3)).to.be.fulfilled;
+
+
+      await conn1.close();
+      await conn2.close();
+      await conn3.close();
+      sharedMixnetWebsocketConnection.close();
+      SP.terminateServiceProvider();
+
+      // eslint-disable-next-line promise/param-names
+      // await new Promise(r => setTimeout(r, 3000));
+    });
+  });
 });

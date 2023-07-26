@@ -208,6 +208,7 @@ const data = await res.json();
       this.onOpen();
     } catch (e) {
       const error = this.parseError(e as any);
+      console.log("\x1b[91mEmit HTTP register_error" + "\x1b[0m");
       this.events.emit("register_error", error);
       this.onClose();
       throw error;
@@ -218,12 +219,14 @@ const data = await res.json();
   private onOpen() {
     this.isAvailable = true;
     this.registering = false;
+    console.log("\x1b[91mEmit HTTP open" + "\x1b[0m");
     this.events.emit("open");
   }
 
   private onClose() {
     this.isAvailable = false;
     this.registering = false;
+    console.log("\x1b[91mEmit HTTP close" + "\x1b[0m");
     this.events.emit("close");
   }
 
@@ -256,6 +259,8 @@ const data = await res.json();
   private onPayload(e: { data: any }) {
     if (typeof e.data === "undefined") return;
     const payload: JsonRpcPayload = typeof e.data === "string" ? safeJsonParse(e.data) : e.data;
+    console.log("\x1b[91mEmit HTTP payload (payload): " + "\x1b[0m");
+    console.log(payload);
     this.events.emit("payload", payload);
   }
 
@@ -263,6 +268,8 @@ const data = await res.json();
     const error = this.parseError(e);
     const message = error.message || error.toString();
     const payload = formatJsonRpcError(id, message);
+    console.log("\x1b[91mEmit HTTP payload (error): " + "\x1b[0m");
+    console.log(payload);
     this.events.emit("payload", payload);
   }
 
