@@ -10,7 +10,7 @@ import { version } from "@walletconnect/utils/package.json";
 import { fromString } from "uint8arrays/from-string";
 
 import NymHttpConnection from "../src/nym-http";
-import NymWsServiceProvider from "../../nym-SP/src/nym-service_provider";
+import NymServiceProvider from "../../nym-SP/src/nym-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
 import {
   JsonRpcError,
@@ -105,12 +105,12 @@ function mockWcRpcPublish(): JsonRpcRequest {
 const senderTag = "testerToSixteenAddMor"; // That's what Nym expects as tag length.
 
 
-describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
+describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
   describe("init", () => {
     it("initialises SP, requires Nym client to be running", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
-      chai.expect(SP instanceof NymWsServiceProvider).to.be.true;
+      chai.expect(SP instanceof NymServiceProvider).to.be.true;
 
       SP.terminateServiceProvider();
     });
@@ -131,7 +131,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("fetch", () => {
     it("can reach the RPC-node", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymHttpConnection(await formatRelayUrl());
 
@@ -164,7 +164,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     });
 
     it("fetch a valid answer", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymHttpConnection(await formatRelayUrl());
 
@@ -211,7 +211,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     ./nym/target/release/nym-client run --id wc-test-client80 -p 1980
      */
     it("fetch a valid answer from 3 different users", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn1 = new NymHttpConnection(await formatRelayUrl(), false, "1977");
       const conn2 = new NymHttpConnection(await formatRelayUrl(), false, "1979");

@@ -1,4 +1,4 @@
-import { NymWsServiceProvider } from "nym-wc-SP";
+import { NymServiceProvider } from "nym-wc-SP";
 
-const SP = new NymWsServiceProvider();
+const SP = new NymServiceProvider();
 SP.setup();

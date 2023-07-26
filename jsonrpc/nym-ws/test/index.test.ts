@@ -10,7 +10,7 @@ import { version } from "@walletconnect/utils/package.json";
 import { fromString } from "uint8arrays/from-string";
 
 import NymWsConnection from "../src/nym-ws";
-import NymWsServiceProvider from "../../nym-SP/src/nym-service_provider";
+import NymServiceProvider from "../../nym-SP/src/nym-service_provider";
 import { safeJsonStringify , safeJsonParse } from "@walletconnect/safe-json";
 import {
   JsonRpcError,
@@ -110,7 +110,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("open", () => {
     it("can open a connection with a valid relay `wss:` URL", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
@@ -146,7 +146,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
         relayUrl: RELAY_URL,
         auth,
       });
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
 
@@ -169,7 +169,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     });
 
     it("can open a connection, then gracefully handles a second open request", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
@@ -201,7 +201,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("close", () => {
     it("can open then close a connection", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
@@ -235,7 +235,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     });
 
     it("can not double close a connection, with correct error message", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
@@ -271,7 +271,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("forwardRPC", () => {
     it("send a valid WC RPC", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
@@ -320,7 +320,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     ./nym/target/release/nym-client run --id wc-test-client80 -p 1980
      */
     it("send valid WC RPCs from 3 different users", async () => {
-      const SP = new NymWsServiceProvider();
+      const SP = new NymServiceProvider();
       await SP.setup();
       const conn1 = new NymWsConnection(await formatRelayUrl(), "1977");
       const conn2 = new NymWsConnection(await formatRelayUrl(), "1979");

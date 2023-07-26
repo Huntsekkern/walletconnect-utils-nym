@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import WebSocket, { MessageEvent } from "ws";
+import fetch from "cross-fetch";
 import BiMap from "bidirectional-map";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
@@ -34,7 +35,7 @@ const separator = ":::::";
 
 // TODO nearly everything but setup can be private here as they are mostly triggered by incoming messages
 // But for unit-testing I made some part public, take into account and could reswitch to private later.
-export class NymWsServiceProvider {
+export class NymServiceProvider {
   private port = "1978";
   private localClientUrl = "ws://127.0.0.1:" + this.port;
   private mixnetWebsocketConnection: WebSocket | undefined;
@@ -281,4 +282,4 @@ export class NymWsServiceProvider {
 
 
 
-export default NymWsServiceProvider;
+export default NymServiceProvider;

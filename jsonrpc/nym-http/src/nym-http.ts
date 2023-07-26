@@ -93,7 +93,8 @@ export class NymHttpConnection implements IJsonRpcConnection {
   }
 
   public async send(payload: JsonRpcPayload, context?: any): Promise<void> {
-    console.log("NYM HTTP send this payload: " + payload);
+    console.log("NYM HTTP send this payload: ");
+    console.log(payload);
     if (!this.isAvailable) {
       await this.register();
     }
