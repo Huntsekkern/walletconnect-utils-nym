@@ -110,7 +110,9 @@ export class NymServiceProvider {
 
   public async proxyFetch(senderTag: string, url: string, body: string, UID: string): Promise<void> {
     const res = await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
-    const data = await res.json();
+    const data = await res.json(); // could to text() and hopefully remove the safeJsonStringify, but safer that way.
+    console.log("data:");
+    console.log(data);
     this.sendMessageToMixnet(safeJsonStringify(UID + separator + safeJsonStringify(data)), senderTag);
   }
 

@@ -103,12 +103,12 @@ export class NymHttpConnection implements IJsonRpcConnection {
       const resDebug = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
       console.log(this.url);
       console.log(body);
-      console.log(resDebug);
+      console.log("debug data:");
+      const dataDebug = await resDebug.json();
+      console.log(dataDebug);
 
-      const res = await this.nymFetch(safeJsonStringify(payload));
-      const data = await res.json();
+      const data = await this.nymFetch(safeJsonStringify(payload));
       console.log("From NYMFETCH:");
-      console.log(res);
       console.log(data);
       this.onPayload({ data });
     } catch (e) {
