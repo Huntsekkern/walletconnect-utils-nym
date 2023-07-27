@@ -102,7 +102,7 @@ export class NymHttpConnection implements IJsonRpcConnection {
       const body = safeJsonStringify(payload);
       // const resDebug = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
       console.log(this.url);
-      console.log(body);
+      // console.log(body);
       /*       console.log("debug data:");
            const dataDebug = await resDebug.json();
            console.log(dataDebug);*/
@@ -129,11 +129,6 @@ export class NymHttpConnection implements IJsonRpcConnection {
 
     // TODO this is a security flaw waiting to happen right? make a url with ::::: and you break the system. Even a payload with ::::: could become dangerous?
     const body = this.url + separator + payload + separator + UID;
-    /*const res = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
-
-*
-const data = await res.json();
-    this.onPayload({ data });*/
 
     const message = {
       type: "sendAnonymous",
@@ -142,12 +137,11 @@ const data = await res.json();
       replySurbs: SURBsGiven,
     };
 
-
     // Send our message object out via our websocket connection.
     this.sharedMixnetWebsocketConnection.send(safeJsonStringify(message));
 
     return this.recursiveUIDChecker(UID);
-    
+
     // this works, but lead to listeners explosion if they are not automatically GC'ed on resolve.
     // (node:1822318) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 mixnetPayload listeners added to [EventEmitter]. Use emitter.setMaxListeners() to increase limit
     // My recursive solution seems to solve the problem :)
@@ -220,14 +214,14 @@ const data = await res.json();
 
 
     try {
+      this.sharedMixnetWebsocketConnection.addEventListener("message", (e: any) => {
+        this.onMixnetPayload(e);
+      });
       if (!this.disableProviderPing) {
         const body = safeJsonStringify({ id: 1, jsonrpc: "2.0", method: "test", params: [] });
         await this.nymFetch(body);
         // await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
       }
-      this.sharedMixnetWebsocketConnection.onmessage = (e: any) => {
-        this.onMixnetPayload(e);
-      };
       this.onOpen();
     } catch (e) {
       const error = this.parseError(e as any);
@@ -256,7 +250,7 @@ const data = await res.json();
   // unwrap and emit a new type of event to trigger nymFetch, so that it resolves (and potentially call onPayload from nymFetch)
   private onMixnetPayload(mixnetPayload) {
     try {
-      // console.log("Received from mixnet: " + e.data); // This can be very useful for debugging, not great for logging though
+      // console.log("Received from mixnet: " + mixnetPayload.data); // This can be very useful for debugging, not great for logging though
       const response = safeJsonParse(mixnetPayload.data);
       if (response.type == "error") {
         console.log("mixnet responded with error: ");
