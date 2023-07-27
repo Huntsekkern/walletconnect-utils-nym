@@ -54,7 +54,7 @@ export class NymHttpConnection implements IJsonRpcConnection {
     this.url = url;
     this.disableProviderPing = disableProviderPing;
     this.sharedMixnetWebsocketConnection = sharedMixnetWebsocketConnection;
-    this.sendSelfAddressRequest();
+    //this.sendSelfAddressRequest();
   }
 
   get connected(): boolean {
@@ -100,16 +100,15 @@ export class NymHttpConnection implements IJsonRpcConnection {
     }
     try {
       const body = safeJsonStringify(payload);
-      const resDebug = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
+      // const resDebug = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
       console.log(this.url);
       console.log(body);
-      console.log("debug data:");
-      const dataDebug = await resDebug.json();
-      console.log(dataDebug);
+      /*       console.log("debug data:");
+           const dataDebug = await resDebug.json();
+           console.log(dataDebug);*/
 
       const data = await this.nymFetch(safeJsonStringify(payload));
-      console.log("From NYMFETCH:");
-      console.log(data);
+      console.log("From NYMFETCH, before onPayload:");
       this.onPayload({ data });
     } catch (e) {
       this.onError(payload.id, e as any);
@@ -143,17 +142,38 @@ const data = await res.json();
       replySurbs: SURBsGiven,
     };
 
-    // TODO Doesn't that becomes a state explosion of listeners? probably... Should try to remove the listener after the UID is validated?
-    this.sharedMixnetWebsocketConnection.onmessage = (e: any) => {
-      this.onMixnetPayload(e, UID);
-    };
 
     // Send our message object out via our websocket connection.
     this.sharedMixnetWebsocketConnection.send(safeJsonStringify(message));
 
     return new Promise(( resolve, reject ) => {
-      this.once("mixnetPayload", purePayload => {
-        resolve(purePayload);
+      // TODO this works better, but still lead to listeners explosion if they are not automatically GC'ed on resolve.
+      // If it works, try to switch it with the recursiveUIDChecker()
+      // YEAH: (node:1822318) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 mixnetPayload listeners added to [EventEmitter]. Use emitter.setMaxListeners() to increase limit
+      this.on("mixnetPayload", payload => {
+        const uidMessage = payload.split(separator);
+        const receivedUID = uidMessage[0];
+        if (receivedUID === UID) {
+          const parsedPayload = safeJsonParse(uidMessage[1]);
+          const purePayload = parsedPayload as Response;
+          resolve(purePayload);
+        }
+      });
+    });
+  }
+
+  private recursiveUIDChecker(UID: string): Promise<Response> {
+    return new Promise(( resolve, reject ) => {
+      this.once("mixnetPayload", payload => {
+        const uidMessage = payload.split(separator);
+        const receivedUID = uidMessage[0];
+        if (receivedUID !== UID) {
+          resolve(this.recursiveUIDChecker(UID));
+        } else {
+          const parsedPayload = safeJsonParse(uidMessage[1]);
+          const purePayload = parsedPayload as Response;
+          resolve(purePayload);
+        }
       });
     });
   }
@@ -196,8 +216,6 @@ const data = await res.json();
     this.url = url;
     this.registering = true;
 
-    this.url = url;
-    this.registering = true;
 
     try {
       if (!this.disableProviderPing) {
@@ -205,6 +223,9 @@ const data = await res.json();
         await this.nymFetch(body);
         // await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
       }
+      this.sharedMixnetWebsocketConnection.onmessage = (e: any) => {
+        this.onMixnetPayload(e);
+      };
       this.onOpen();
     } catch (e) {
       const error = this.parseError(e as any);
@@ -231,7 +252,7 @@ const data = await res.json();
   }
 
   // unwrap and emit a new type of event to trigger nymFetch, so that it resolves (and potentially call onPayload from nymFetch)
-  private onMixnetPayload(mixnetPayload, UID: string) {
+  private onMixnetPayload(mixnetPayload) {
     try {
       // console.log("Received from mixnet: " + e.data); // This can be very useful for debugging, not great for logging though
       const response = safeJsonParse(mixnetPayload.data);
@@ -244,12 +265,7 @@ const data = await res.json();
         console.log("Our address is:  " + this.ourAddress);
       } else if (response.type == "received") {
         const payload: string = response.message;
-        const uidMessage = payload.split(separator);
-        if (UID === uidMessage[0]) {
-          const parsedPayload = safeJsonParse(uidMessage[1]);
-          const purePayload = parsedPayload as Response; // TODO
-          this.events.emit("mixnetPayload", purePayload);
-        }
+        this.events.emit("mixnetPayload", payload);
       }
     } catch (err) {
       console.log("\x1b[91mclient onMixnetPayload error: " + err + " , happened with http Payload: " + mixnetPayload.data + "\x1b[0m"); // TODO this.onError?
