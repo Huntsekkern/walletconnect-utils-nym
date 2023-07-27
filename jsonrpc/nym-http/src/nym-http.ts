@@ -146,10 +146,12 @@ const data = await res.json();
     // Send our message object out via our websocket connection.
     this.sharedMixnetWebsocketConnection.send(safeJsonStringify(message));
 
-    return new Promise(( resolve, reject ) => {
-      // TODO this works better, but still lead to listeners explosion if they are not automatically GC'ed on resolve.
-      // If it works, try to switch it with the recursiveUIDChecker()
-      // YEAH: (node:1822318) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 mixnetPayload listeners added to [EventEmitter]. Use emitter.setMaxListeners() to increase limit
+    return this.recursiveUIDChecker(UID);
+    
+    // this works, but lead to listeners explosion if they are not automatically GC'ed on resolve.
+    // (node:1822318) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 mixnetPayload listeners added to [EventEmitter]. Use emitter.setMaxListeners() to increase limit
+    // My recursive solution seems to solve the problem :)
+/*    return new Promise(( resolve, reject ) => {
       this.on("mixnetPayload", payload => {
         const uidMessage = payload.split(separator);
         const receivedUID = uidMessage[0];
@@ -159,7 +161,7 @@ const data = await res.json();
           resolve(purePayload);
         }
       });
-    });
+    });*/
   }
 
   private recursiveUIDChecker(UID: string): Promise<Response> {
