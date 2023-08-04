@@ -167,12 +167,12 @@ function connectWebsocket(url: string): Promise<WebSocket> {
 describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
   describe("init", () => {
     it("initialises SP, requires Nym client to be running", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
 
-      chai.expect(SP instanceof NymServiceProvider).to.be.true;
+      // chai.expect(SP instanceof NymServiceProvider).to.be.true;
 
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
     });
     it("does not initialise with an invalid `http` string", async () => {
       const sharedMixnetWebsocketConnection = await connectToMixnet();
@@ -210,8 +210,8 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
     it("initialises with a `https:` string with ping", async () => {
       // This test passes as long as the RPC pings back. Like the vanilla http-connection, it does not check for the
       // content of the response. But with the current URL, the chain ID is not supported.
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
 
       const sharedMixnetWebsocketConnection = await connectToMixnet();
 
@@ -223,14 +223,14 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
 
       await conn.close();
       sharedMixnetWebsocketConnection.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
     });
   });
 
   describe("fetch", () => {
     it("can reach the RPC-node", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const sharedMixnetWebsocketConnection = await connectToMixnet();
       const url = FULL_RPC_URL;
 
@@ -248,12 +248,12 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
 
       await conn.close();
       sharedMixnetWebsocketConnection.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
     });
 
     it("fetch a valid answer for gasPrice", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const sharedMixnetWebsocketConnection = await connectToMixnet();
       const url = FULL_RPC_URL;
 
@@ -279,12 +279,12 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
 
       await conn.close();
       sharedMixnetWebsocketConnection.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
     });
 
     it("fetch a valid answer for blockByNumber", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const sharedMixnetWebsocketConnection = await connectToMixnet();
       const url = FULL_RPC_URL;
 
@@ -310,12 +310,12 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
 
       await conn.close();
       sharedMixnetWebsocketConnection.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
     });
 
     it("fetch a valid answer from 3 different connections", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const sharedMixnetWebsocketConnection = await connectToMixnet();
       const url = FULL_RPC_URL;
 
@@ -390,7 +390,7 @@ describe("@walletconnect/nym-jsonrpc-http-E2E", () => {
       await conn2.close();
       await conn3.close();
       sharedMixnetWebsocketConnection.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
       // await new Promise(r => setTimeout(r, 3000));

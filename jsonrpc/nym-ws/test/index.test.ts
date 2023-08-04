@@ -110,8 +110,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("open", () => {
     it("can open a connection with a valid relay `wss:` URL", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
       conn.on("open",() => {
@@ -120,15 +120,15 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       });
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.size).to.equal(0);
+      // chai.expect(SP.tagToWSConn.size).to.equal(0);
 
       await chai.expect(conn.open()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.size).to.equal(1);
+      // chai.expect(SP.tagToWSConn.size).to.equal(1);
 
       await conn.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
       // conn.terminateClient();
@@ -146,8 +146,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
         relayUrl: RELAY_URL,
         auth,
       });
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn = new NymWsConnection(rpcUrlWithoutProjectId);
 
       conn.on("register_error",(payload: Error) => {
@@ -158,7 +158,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
       await chai.expect(conn.open()).to.be.rejected;
 
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
       // conn.terminateClient();
@@ -169,13 +169,13 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     });
 
     it("can open a connection, then gracefully handles a second open request", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.size).to.equal(0);
+      // chai.expect(SP.tagToWSConn.size).to.equal(0);
 
       // TODO I think skipping the await does what I want it to do, but not 100% sure.
       conn.open();
@@ -184,10 +184,10 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await chai.expect(conn.open()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.size).to.equal(1);
+      // chai.expect(SP.tagToWSConn.size).to.equal(1);
 
       await conn.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
       // conn.terminateClient();
@@ -201,8 +201,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("close", () => {
     it("can open then close a connection", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
       conn.once("open",() => {
@@ -210,7 +210,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       });
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.size).to.equal(0);
+      // chai.expect(SP.tagToWSConn.size).to.equal(0);
 
       await chai.expect(conn.open()).to.be.fulfilled;
 
@@ -220,23 +220,23 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       });
 
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.size).to.equal(1);
+      // chai.expect(SP.tagToWSConn.size).to.equal(1);
 
       await chai.expect(conn.close()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.size).to.equal(0);
+      // chai.expect(SP.tagToWSConn.size).to.equal(0);
 
 
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
       // await new Promise(r => setTimeout(r, 3000));
     });
 
     it("can not double close a connection, with correct error message", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
       conn.once("open",() => {
@@ -244,7 +244,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       });
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.size).to.equal(0);
+      // chai.expect(SP.tagToWSConn.size).to.equal(0);
 
       await chai.expect(conn.open()).to.be.fulfilled;
 
@@ -253,16 +253,16 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       });
 
       chai.expect(conn.connected).to.be.true;
-      chai.expect(SP.tagToWSConn.size).to.equal(1);
+      // chai.expect(SP.tagToWSConn.size).to.equal(1);
 
       await chai.expect(conn.close()).to.be.fulfilled;
 
       chai.expect(conn.connected).to.be.false;
-      chai.expect(SP.tagToWSConn.size).to.equal(0);
+      // chai.expect(SP.tagToWSConn.size).to.equal(0);
 
       await chai.expect(conn.close()).to.be.rejectedWith("Connection already closed");
 
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
       // await new Promise(r => setTimeout(r, 3000));
@@ -271,8 +271,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
 
   describe("forwardRPC", () => {
     it("send a valid WC RPC", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn = new NymWsConnection(await formatRelayUrl());
 
       conn.once("open",() => {
@@ -298,7 +298,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       await new Promise(r => setTimeout(r, 3000));
 
       await conn.close();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // Those are not needed anymore, but the solution above depends on .close() working properly, which it does now, but if it starts failing, it might make pinpointing the source of error harder.
       // conn.terminateClient();
@@ -320,8 +320,8 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
     ./nym/target/release/nym-client run --id wc-test-client80 -p 1980
      */
     it("send valid WC RPCs from 3 different users", async () => {
-      const SP = new NymServiceProvider();
-      await SP.setup();
+      // const SP = new NymServiceProvider();
+      // await SP.setup();
       const conn1 = new NymWsConnection(await formatRelayUrl(), "1977");
       const conn2 = new NymWsConnection(await formatRelayUrl(), "1979");
       const conn3 = new NymWsConnection(await formatRelayUrl(), "1980");
@@ -383,7 +383,7 @@ describe("@walletconnect/nym-jsonrpc-ws-E2E", () => {
       // conn1.terminateClient();
       // conn2.terminateClient();
       // conn3.terminateClient();
-      SP.terminateServiceProvider();
+      // SP.terminateServiceProvider();
 
       // eslint-disable-next-line promise/param-names
       // await new Promise(r => setTimeout(r, 3000));

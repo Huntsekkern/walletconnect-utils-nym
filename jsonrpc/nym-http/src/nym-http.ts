@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import { EventEmitter } from "events";
 import WebSocket from "ws";
-import fetch from "cross-fetch";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
   formatJsonRpcError,
