@@ -16,23 +16,17 @@ const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 
 const isBrowser = () => typeof window !== "undefined";
-// can be harcoded for now, input in the future, from options all the way down from core.ts (in WC monorepo)
-// Also this was only useful for the Nym SDK, not when running the Nym Client.
-const nymApiUrl = "https://validator.nymtech.net/api";
-const preferredGatewayIdentityKey = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 
 // TODO, this is hardcoded from one particular instance of a Nym client
 const serviceProviderDefaultAddress = "EwvY4QwFXs1n6MkpiKKH9WHgntnd9BPqmHNrKRfX3ufM.J9c8X9es2Z86hvS8CpsZKYTXkjQsRnmZEc3wbQNTBv7q@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW";
 
 
 export class NymWsConnection implements IJsonRpcConnection {
-  // TODO check the eventEmitter too. While not directly leaking, even printing things to the console may want to be minimised?
   public events = new EventEmitter();
 
   private registering = false;
 
   private connectedToRelay = false;
-
   // connectedToMixnet is not used, as the (typeof this.mixnetWebsocketConnection !== "undefined") check is more direct
 
   private port = "1977";
@@ -232,10 +226,10 @@ export class NymWsConnection implements IJsonRpcConnection {
     return new Promise<void>((resolve, reject) => {
       this.nymSend("open:" + url).then(() => {
         this.events.once("open", () => {
-          // TODO should I check that it's the proper answer? Maybe by checking the url? But I don't think that checking the url is enough..
+          // TODO should I check that it's the proper answer by also using a UID here?
           resolve();
         });
-        // TODO ok, I think I got the issue, this is triggering also on future Errors, but the promise was already resolved, so I get an unhandled rejection, since nothing is awaiting for the rejection anymore...
+        // ok, I think I got the issue, this is triggering also on future Errors, but the promise was already resolved, so I get an unhandled rejection, since nothing is awaiting for the rejection anymore...
         // And conversely, an incoming payload from another existing WSConn would trigger the event, yet not enter the if statement.
         // I guess the solution is to make a unique type of event??
         // TODO now, this is also not taking into account send error through the WS to the nym client, because I had to split the error types to match the event flow of vanilla-WC
@@ -377,7 +371,7 @@ export class NymWsConnection implements IJsonRpcConnection {
   }
 
   // Function that connects our application to the mixnet Websocket. We want to call this when registering.
-  private connectWebsocket(url: string): Promise<void> {
+  private connectWebsocket(url: string): Promise<WebSocket> {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);
       console.log("user connecting to Mixnet Websocket (Nym Client)...");

@@ -13,18 +13,6 @@ import {
 import { toString } from "uint8arrays";
 import { randomBytes } from "@stablelib/random";
 
-const DEFAULT_HTTP_HEADERS = {
-  Accept: "application/json",
-  "Content-Type": "application/json",
-};
-
-const DEFAULT_HTTP_METHOD = "POST";
-
-const DEFAULT_FETCH_OPTS = {
-  headers: DEFAULT_HTTP_HEADERS,
-  method: DEFAULT_HTTP_METHOD,
-};
-
 const BASE16 = "base16";
 
 const separator = ":::::";
@@ -54,7 +42,7 @@ export class NymHttpConnection implements IJsonRpcConnection {
     this.url = url;
     this.disableProviderPing = disableProviderPing;
     this.sharedMixnetWebsocketConnection = sharedMixnetWebsocketConnection;
-    //this.sendSelfAddressRequest();
+    this.sendSelfAddressRequest();
   }
 
   get connected(): boolean {
@@ -100,14 +88,9 @@ export class NymHttpConnection implements IJsonRpcConnection {
     }
     try {
       const body = safeJsonStringify(payload);
-      // const resDebug = await fetch(this.url, { ...DEFAULT_FETCH_OPTS, body });
       console.log(this.url);
       // console.log(body);
-      /*       console.log("debug data:");
-           const dataDebug = await resDebug.json();
-           console.log(dataDebug);*/
-
-      const data = await this.nymFetch(safeJsonStringify(payload));
+      const data = await this.nymFetch(body);
       console.log("From NYMFETCH, before onPayload:");
       this.onPayload({ data });
     } catch (e) {
@@ -220,7 +203,6 @@ export class NymHttpConnection implements IJsonRpcConnection {
       if (!this.disableProviderPing) {
         const body = safeJsonStringify({ id: 1, jsonrpc: "2.0", method: "test", params: [] });
         await this.nymFetch(body);
-        // await fetch(url, { ...DEFAULT_FETCH_OPTS, body });
       }
       this.onOpen();
     } catch (e) {

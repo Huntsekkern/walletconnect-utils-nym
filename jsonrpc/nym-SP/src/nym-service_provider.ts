@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import WebSocket, { MessageEvent } from "ws";
 import fetch from "cross-fetch";
-import BiMap from "bidirectional-map";
 import { safeJsonParse, safeJsonStringify } from "@walletconnect/safe-json";
 import {
   formatJsonRpcError,
@@ -41,9 +40,7 @@ export class NymServiceProvider {
   private mixnetWebsocketConnection: WebSocket | undefined;
   private ourAddress: string | undefined;
 
-  // TODO not even sure I need it to be a Bidirectional Map as I'm passing senderTag as param to onClose/OnPayload.
   public tagToWSConn: Map<string, WebSocket> = new Map();
-  //public tagToWSConn: BiMap = new BiMap;
 
   // Always call setup after new NymWsServiceProvider(); ! Necessary because the constructor cannot wait.
   public async setup() {
@@ -83,7 +80,7 @@ export class NymServiceProvider {
   }
 
   // handleReceivedMixnetMessage process the messages from mixnet users (wallet/dapp)
-  // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.,
+  // The three main actions are open a connection, close a connection or forward an RPC on an existing connection.
   private async handleReceivedMixnetMessage(response: any) {
     const senderTag = response.senderTag;
     const message = response.message;
@@ -160,7 +157,7 @@ export class NymServiceProvider {
       if (typeof socket === "undefined") {
         // Tell the user that the connection is closed to allow it to shutdown.
         // In fact the connection was already closed, but the user do not need the distinction.
-          // TODO this is one of the many messy situations: it is tempting to tell the user "closed" to take care of cases where a message may get dropped, etc. But since the user reacts automatically to "closed" message, it can also causes confusion. Especially within tests which open and shutdown multiple connections
+          // TODO this is a messy situation: it is tempting to tell the user "closed" to take care of cases where a message may get dropped, etc. But since the user reacts automatically to "closed" message, it can also causes confusion. Especially within tests which open and shutdown multiple connections
        // this.sendMessageToMixnet("closed", senderTag);
         reject(new Error("Connection already closed"));
         return;
@@ -256,7 +253,7 @@ export class NymServiceProvider {
   }
 
 // connectToMixnetWebsocket connects our application to the mixnet Websocket. We want to call this first when setting up.
-  private connectToMixnetWebsocket(url: string) {
+  private connectToMixnetWebsocket(url: string): Promise<WebSocket> {
     return new Promise(function (resolve, reject) {
       const server = new WebSocket(url);
       console.log("SP connecting to Mixnet Websocket (Nym Client)...");

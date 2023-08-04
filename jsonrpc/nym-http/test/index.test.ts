@@ -137,7 +137,6 @@ async function connectToMixnet(): Promise<WebSocket> {
       });
     });
 
-    // TODO can also introduce this refactored promise in the other place
     return new Promise((resolve, reject) => {
       if (!sharedMixnetWebsocketConnection) {
         const err = new Error("Oh no! Could not create client");
@@ -149,7 +148,6 @@ async function connectToMixnet(): Promise<WebSocket> {
     });
 }
 
-// TODO I guess changing Promise<void> to Promise<WebSocket> will work. If it does, I can make that change everywhere else
 // Function that connects our application to the mixnet Websocket. We want to call this when registering.
 function connectWebsocket(url: string): Promise<WebSocket> {
   return new Promise(function (resolve, reject) {
