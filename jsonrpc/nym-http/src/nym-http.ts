@@ -21,7 +21,7 @@ const separator = ":::::";
 const EVENT_EMITTER_MAX_LISTENERS_DEFAULT = 10;
 
 // TODO, this is hardcoded from one particular instance of a Nym client
-const serviceProviderDefaultAddress = "EwvY4QwFXs1n6MkpiKKH9WHgntnd9BPqmHNrKRfX3ufM.J9c8X9es2Z86hvS8CpsZKYTXkjQsRnmZEc3wbQNTBv7q@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW";
+const serviceProviderDefaultAddress = "GbEM8X8FCpsX6tttTXMu9DTinBeHqNz8Xa32vuGL9BLj.Hz652DoVDfbLrbgWWrr7BEYts4ZmDG4niNNCkYPKjDbM@9Byd9VAtyYMnbVAcqdoQxJnq76XEg2dbxbiF5Aa5Jj9J";
 
 
 export class NymHttpConnection implements IJsonRpcConnection {
